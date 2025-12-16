@@ -17,7 +17,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
 import { useCsvData } from "@/components/csv-reader";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import TimeSeriesPlot from "@/plots/time-series-plot";
 import { Button } from "@/components/ui/button";
 import MarkerClusterGroup from "react-leaflet-markercluster";
@@ -29,6 +29,7 @@ import { ChartBarIcon } from "lucide-react";
 import PopupCard from "./popup-card";
 import { RiverLevelPlot } from "@/plots/river-level-plot";
 import dayjs from "dayjs";
+import { TimeSeriesPlotDatestamp } from "@/plots/time-series-plot-datestamp";
 
 const { BaseLayer } = LayersControl;
 
@@ -66,6 +67,15 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     string | null
   >(null);
   const [domain, setDomain] = useState<[number, number] | undefined>(undefined);
+
+  const handleInitialDomain = useCallback((range: [number, number]) => {
+    // 可以顺便做一下去重：如果范围没变，就不 setState
+    setDomain((prev) => {
+      if (!prev) return range;
+      if (prev[0] === range[0] && prev[1] === range[1]) return prev;
+      return range;
+    });
+  }, []); // setDomain 本身是稳定引用，这里依赖数组可以是 []
 
   // Extract unique sites from CSV data
   const sites = useMemo(() => {
@@ -296,9 +306,15 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         </div> */}
 
         <div className="col-span-1">
-          <TimeSeriesPlot
+          {/* <TimeSeriesPlot
             targetParam={selectedParameterName ?? ""}
             sites={selectedSites.map((site) => site.name)}
+          /> */}
+          <TimeSeriesPlotDatestamp
+            targetParam={selectedParameterName ?? ""}
+            sites={selectedSites.map((site) => site.name)}
+            xDomain={domain}
+            onInitialDomain={handleInitialDomain}
           />
         </div>
 
@@ -343,7 +359,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         />
 
         {domain && (
-          <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+          <div className="mt-1 flex justify-between text-medium text-muted-foreground">
             <span>Start: {dayjs(domain[0]).format("YYYY-MM-DD")}</span>
             <span>End: {dayjs(domain[1]).format("YYYY-MM-DD")}</span>
           </div>

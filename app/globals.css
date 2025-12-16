@@ -127,18 +127,31 @@
 
 /* make the popup card transparent, no border, no padding, no margin, no shadow */
 .leaflet-popup.site-popup .leaflet-popup-content-wrapper {
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0;
-  padding: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  border: none !important;
 }
 
 /* remove default margin */
 .leaflet-popup.site-popup .leaflet-popup-content {
-  margin: 0;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* hide the small triangle */
 /* .leaflet-popup.site-popup .leaflet-popup-tip-container {
-  display: none;
+  display: none !important;
 } */
+
+/* hide the tip arrow */
+/* .leaflet-popup.site-popup .leaflet-popup-tip {
+  display: none !important;
+} */
+
+/* ensure the popup container itself has no background */
+.leaflet-popup.site-popup {
+  background: transparent !important;
+  box-shadow: none !important;
+}

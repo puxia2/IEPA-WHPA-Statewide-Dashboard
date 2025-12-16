@@ -6,6 +6,10 @@ export type TimeSeriesPlotProps = {
   colors?: Record<string, string>; // e.g. { "Mo Ave. Well 2": "#b45309", "Mo Ave. Well 3": "#0f766e", "Mo Ave. Well 4": "#7c3aed" }
   height?: number; // height of the plot, default is 440
   compact?: boolean; // whether to show the plot in compact mode, default is false
+
+  // send the data to the parent component (map.tsx)
+  onInitialDomain?: (domain: [number, number]) => void;
+  xDomain?: [number, number];
 };
 
 export type BoxPlotProps = {
