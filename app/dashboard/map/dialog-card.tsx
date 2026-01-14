@@ -23,7 +23,7 @@ interface CsvRow {
   Result_Value?: number | string; // Conentration
   [k: string]: unknown; // there could be more columns, type is unknown
 }
-const csvPath = "/EStL_AllDataJoin.csv";
+const csvPath = "/EStL_AllDataJoin_Unified.csv";
 
 interface Site {
   name: string;
@@ -94,29 +94,21 @@ export function DialogCard({ siteName }: { siteName: Site }) {
           </DialogHeader>
 
           <MultiSelect
-            options={mg_options}
-            onValueChange={setSelectedmgValues}
-            defaultValue={selectedmgValues}
-            modalPopover={true}
-            popoverClassName="z-[10000]"
-          />
-
-          {dialogOpen && (
-            <BoxPlotSingleSite
-              key={`${siteName.name}-${selectedmgValues.join(",")}`}
-              siteName={siteName.name}
-              targetParam={selectedmgValues}
-              height={460}
-            />
-          )}
-
-          <MultiSelect
             options={ug_options}
             onValueChange={setSelectedugValues}
             defaultValue={selectedugValues}
             modalPopover={true}
             popoverClassName="z-[10000]"
           />
+
+          {dialogOpen && (
+            <BoxPlotSingleSite
+              key={`${siteName.name}-${selectedugValues.join(",")}`}
+              siteName={siteName.name}
+              targetParam={selectedugValues}
+              height={460}
+            />
+          )}
 
           <DialogFooter>
             <DialogClose asChild>

@@ -15,9 +15,9 @@ interface CsvRow {
 }
 
 export default function BoxPlotSingleSite({
-  siteName, // ⭐ 固定的站点
-  targetParam, // ⭐ 多选参数数组
-  csvPath = "/EStL_AllDataJoin.csv",
+  siteName,
+  targetParam,
+  csvPath = "/EStL_AllDataJoin_Unified.csv",
   height = 460,
   margin = { top: 24, right: 20, bottom: 64, left: 64 },
   tickRotate = -30,
@@ -61,7 +61,7 @@ export default function BoxPlotSingleSite({
   }
 
   type BoxStats = {
-    param: string; // ⭐ 参数名（x 轴）
+    param: string;
     count: number;
     min: number;
     q1: number;
@@ -71,10 +71,6 @@ export default function BoxPlotSingleSite({
     max: number;
   };
 
-  // ⭐ 对于一个固定的 site：
-  // 1) 仅保留 Name===siteName 的记录
-  // 2) 仅保留 ParamName 在 targetParam[] 里的记录
-  // 3) 按 ParamName 分组，计算 box stats
   const stats: BoxStats[] = useMemo(() => {
     if (!rows.length || !siteName || !targetParam?.length) return [];
 
@@ -92,7 +88,7 @@ export default function BoxPlotSingleSite({
 
     for (const r of rows) {
       const rowSite = normalize(String(r.Name ?? ""));
-      if (!rowSite || rowSite !== siteNorm) continue; // ⭐ 固定 site
+      if (!rowSite || rowSite !== siteNorm) continue;
 
       const paramNormalized = normalize(String(r.ParamName ?? ""));
       if (!paramNormalized || !paramSet.has(paramNormalized)) continue;
@@ -127,7 +123,6 @@ export default function BoxPlotSingleSite({
       });
     });
 
-    // 默认按参数名字排序
     out.sort((a, b) => a.param.localeCompare(b.param));
     return out;
   }, [rows, siteName, targetParam]);

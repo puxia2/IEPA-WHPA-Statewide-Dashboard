@@ -28,6 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartBarIcon } from "lucide-react";
 import PopupCard from "./popup-card";
 import { RiverLevelPlot } from "@/plots/river-level-plot";
+import { RiverLevelPlotRealTime } from "@/plots/river-level-plot-real-time";
 import dayjs from "dayjs";
 import { TimeSeriesPlotDatestamp } from "@/plots/time-series-plot-datestamp";
 
@@ -352,10 +353,21 @@ export default function MyMap({ position, zoom }: MyMapProps) {
           </Button>
         </div>
 
-        <RiverLevelPlot
+        {/* <RiverLevelPlot
           csvPath="/dv.csv"
           xDomain={domain}
           onDomainChange={setDomain}
+        /> */}
+
+        <RiverLevelPlotRealTime
+          csvPath="/dv.csv"
+          site="07010000"
+          startDT="2001-01-01"
+          parameterCd="00065"
+          xDomain={domain}
+          onDomainChange={setDomain}
+          refreshMs={5 * 60 * 1000}
+          statCd="00003"
         />
 
         {domain && (
