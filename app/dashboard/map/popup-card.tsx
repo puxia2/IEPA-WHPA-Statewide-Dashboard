@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import TimestampSeriesPlot from "@/plots/time-series-plot";
 import { DialogCard } from "./dialog-card";
+import SampleCountsBarPlot from "@/plots/sample-counts-bar-plot";
 
 interface Site {
   name: string;
@@ -51,11 +52,17 @@ export default function PopupCard({
           </div>
 
           <div className="mt-2">
-            <TimestampSeriesPlot
+            {/* <TimestampSeriesPlot
               targetParam="Gage Height (ft)"
               sites={[site.name]}
               height={200}
               compact={true}
+            /> */}
+            <SampleCountsBarPlot
+              siteName={site.name}
+              topN={5}
+              height={200}
+              unit="(ug/L)"
             />
           </div>
           <div className="flex justify-center">

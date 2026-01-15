@@ -362,7 +362,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         <RiverLevelPlotRealTime
           csvPath="/dv.csv"
           site="07010000"
-          startDT="2001-01-01"
+          startDT="2000-01-02"
           parameterCd="00065"
           xDomain={domain}
           onDomainChange={setDomain}
