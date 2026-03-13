@@ -49,6 +49,9 @@ export function TimeSeriesPlotDatestamp({
     const bucket = new Map<string, Map<string, number[]>>();
 
     for (const r of rows) {
+      // Filter by targetParam first (like time-series-plot.tsx does)
+      if (r.ParamName !== targetParam) continue;
+
       const mdy = toMDY(String(r.Start_Date ?? ""));
       if (!mdy) continue;
 
@@ -88,7 +91,7 @@ export function TimeSeriesPlotDatestamp({
 
     out.sort((a, b) => a.sort - b.sort);
     return out;
-  }, [rows, sites]);
+  }, [rows, sites, targetParam]);
 
   useEffect(() => {
     if (!onInitialDomain) return;
