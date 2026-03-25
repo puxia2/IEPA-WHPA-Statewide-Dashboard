@@ -155,3 +155,48 @@
   background: transparent !important;
   box-shadow: none !important;
 }
+
+/* Make react-grid-layout resize handles always visible */
+.react-grid-item > .react-resizable-handle {
+  opacity: 1 !important;
+  visibility: visible !important;
+  z-index: 10000 !important;
+}
+
+/* Make resize handle more visible - always show */
+.react-grid-item > .react-resizable-handle-se {
+  width: 20px !important;
+  height: 20px !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: rgba(0, 0, 0, 0.15) !important;
+  border-radius: 4px 0 0 0 !important;
+  cursor: nwse-resize !important;
+}
+
+/* Add visual indicator for resize handle */
+.react-grid-item > .react-resizable-handle-se::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 8px 8px;
+  border-color: transparent transparent rgba(0, 0, 0, 0.6) transparent;
+}
+
+/* Ensure resize handles are above Leaflet controls */
+.react-grid-item {
+  z-index: 1;
+}
+
+.react-grid-item.react-grid-placeholder {
+  z-index: 0;
+}
+
+/* Ensure Leaflet controls don't interfere with resize handles */
+.leaflet-control-container {
+  z-index: 1000 !important;
+}

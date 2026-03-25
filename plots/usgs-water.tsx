@@ -50,27 +50,20 @@ export async function fetchUsgsRiverDailyDv(
     statCd, // optional
   } = opts;
 
-  const params = new URLSearchParams({
-    service: "dv",
-    format: "json",
-    sites: site,
-    startDT,
-    parameterCd,
-  });
-  if (endDT) params.set("endDT", endDT);
-  if (statCd) params.set("statCd", statCd); // ✅ only add if user specifies
+  const buildApiUrl = (withStatCd: boolean) => {
+    const params = new URLSearchParams({
+      service: "dv",
+      format: "json",
+      sites: site,
+      startDT,
+      parameterCd,
+    });
+    if (endDT) params.set("endDT", endDT);
+    if (withStatCd && statCd) params.set("statCd", statCd);
+    return `/api/usgs?${params.toString()}`;
+  };
 
-  const apiUrl = `/api/usgs?${params.toString()}`;
-
-  try {
-    const response = await fetch(apiUrl, { cache: "no-store" });
-    if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      throw new Error(text || `USGS proxy status: ${response.status}`);
-    }
-
-    const json = await response.json();
-
+  const toRiverPoints = (json: any): RiverPoint[] => {
     const ts = json?.value?.timeSeries?.[0];
     const values = ts?.values?.[0]?.value ?? [];
 
@@ -91,6 +84,28 @@ export async function fetchUsgsRiverDailyDv(
     }
 
     out.sort((a, b) => a.dateMs - b.dateMs);
+    return out;
+  };
+
+  try {
+    let response = await fetch(buildApiUrl(true), { cache: "no-store" });
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(text || `USGS proxy status: ${response.status}`);
+    }
+
+    let json = await response.json();
+    let out = toRiverPoints(json);
+
+    // Some DV series don't support the provided statCd; retry without statCd.
+    if (!out.length && statCd) {
+      response = await fetch(buildApiUrl(false), { cache: "no-store" });
+      if (response.ok) {
+        json = await response.json();
+        out = toRiverPoints(json);
+      }
+    }
+
     return out;
   } catch (e) {
     console.error("fetchUsgsRiverDailyDv failed:", e);
