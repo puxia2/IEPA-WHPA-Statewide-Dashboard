@@ -17,14 +17,14 @@ import {
 import { MenuItem } from "@/components/menu-item";
 
 const items = [
+  // {
+  //   title: "Dashboard",
+  //   url: "/dashboard",
+  //   icon: "dashboard",
+  // },
   {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: "dashboard",
-  },
-  {
-    title: "Map",
-    url: "/dashboard/map",
+    title: "Overview",
+    url: "/dashboard/overview",
     icon: "map",
   },
   {

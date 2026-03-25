@@ -1,5 +1,5 @@
 import { RiverLevelPlotProps } from "@/types/chart";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import {
   Brush,
@@ -44,6 +44,7 @@ export function RiverLevelPlotRealTime({
         parameterCd,
         startDT,
         endDT,
+        statCd,
       });
       if (!series) throw new Error("No USGS data");
       return series;
@@ -56,7 +57,7 @@ export function RiverLevelPlotRealTime({
     }
   );
 
-  const plotData: RiverPoint[] = data ?? [];
+  const plotData: RiverPoint[] = useMemo(() => data ?? [], [data]);
 
   // ------------------------------------------------------------------
   // minYear, maxYear, yearTicks for x axis ticks (avoid missing years)
@@ -77,11 +78,17 @@ export function RiverLevelPlotRealTime({
     return arr;
   }, [plotData.length, minYear, maxYear]);
 
-  // convert xDomain to startIndex / endIndex for Brush
-  const brushIndices = useMemo(() => {
-    if (!xDomain || !plotData.length) {
+  // Keep brush as local controlled state:
+  // - when parent xDomain changes (e.g. marker click), initialize brush to that range
+  // - when user drags brush, update local indices immediately and sync to parent
+  const [brushRange, setBrushRange] = useState<{
+    startIndex?: number;
+    endIndex?: number;
+  }>({});
+
+  const indicesFromDomain = useMemo(() => {
+    if (!xDomain || !plotData.length)
       return { startIndex: undefined, endIndex: undefined };
-    }
     const [start, end] = xDomain;
 
     let startIndex = plotData.findIndex((d) => d.dateMs >= start);
@@ -91,7 +98,11 @@ export function RiverLevelPlotRealTime({
     if (endIndex === -1) endIndex = plotData.length - 1;
 
     return { startIndex, endIndex };
-  }, [plotData, xDomain]);
+  }, [xDomain, plotData]);
+
+  useEffect(() => {
+    setBrushRange(indicesFromDomain);
+  }, [indicesFromDomain]);
 
   if (isLoading) {
     return (
@@ -164,11 +175,18 @@ export function RiverLevelPlotRealTime({
               tickFormatter={(value) =>
                 dayjs(value as number).format("YYYY-MM")
               }
-              startIndex={brushIndices.startIndex}
-              endIndex={brushIndices.endIndex}
-              onChange={(e: any) => {
+              startIndex={brushRange.startIndex}
+              endIndex={brushRange.endIndex}
+              onChange={(e: { startIndex?: number; endIndex?: number }) => {
                 if (!e || !onDomainChange) return;
                 const { startIndex, endIndex } = e;
+                if (
+                  typeof startIndex !== "number" ||
+                  typeof endIndex !== "number"
+                ) {
+                  return;
+                }
+                setBrushRange({ startIndex, endIndex });
                 const start = plotData[startIndex]?.dateMs;
                 const end = plotData[endIndex]?.dateMs;
                 if (start != null && end != null) {

@@ -125,14 +125,15 @@ export function TimeSeriesPlotDatestamp({
   return (
     <div className="flex h-[440px] w-full flex-col gap-2">
       <div>
-        {!compact && (
+        {/*parameter name*/}
+        {/* {!compact && (
           <h1 className="text-2xl font-semibold tracking-tight">
             {targetParam}
           </h1>
-        )}
+        )} */}
 
         {!compact && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-lg text-muted-foreground font-bold text-center">
             Site: {sites.join(", ")}
           </p>
         )}
