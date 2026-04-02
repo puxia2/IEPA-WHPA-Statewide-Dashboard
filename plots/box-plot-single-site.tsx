@@ -7,9 +7,11 @@ import * as d3 from "d3";
 import { BoxPlotSingleSiteProps } from "@/types/chart";
 
 interface CsvRow {
-  ParamName: string;
+  ParamName2?: string;
+  ParamName?: string;
   Name: string;
   Start_Date: string;
+  Result_Value_ugL?: number | string;
   Result_Value?: number | string;
   [k: string]: unknown;
 }
@@ -17,7 +19,7 @@ interface CsvRow {
 export default function BoxPlotSingleSite({
   siteName,
   targetParam,
-  csvPath = "/EStL_AllDataJoin_Unified.csv",
+  csvPath = "/EStL_AllDataJoin2.csv",
   height = 460,
   margin = { top: 24, right: 20, bottom: 64, left: 64 },
   tickRotate = -30,
@@ -90,10 +92,10 @@ export default function BoxPlotSingleSite({
       const rowSite = normalize(String(r.Name ?? ""));
       if (!rowSite || rowSite !== siteNorm) continue;
 
-      const paramNormalized = normalize(String(r.ParamName ?? ""));
+      const paramNormalized = normalize(String(r.ParamName2 ?? r.ParamName ?? ""));
       if (!paramNormalized || !paramSet.has(paramNormalized)) continue;
 
-      const v = coerceNumber(r.Result_Value ?? null);
+      const v = coerceNumber((r.Result_Value_ugL ?? r.Result_Value) ?? null);
       if (v === null) continue;
 
       const arr = groups.get(paramNormalized) ?? [];

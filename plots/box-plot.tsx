@@ -7,16 +7,18 @@ import * as d3 from "d3";
 import { BoxPlotProps } from "@/types/chart";
 
 interface CsvRow {
-  ParamName: string;
+  ParamName2?: string;
+  ParamName?: string;
   Name: string;
   Start_Date: string;
+  Result_Value_ugL?: number | string;
   Result_Value?: number | string;
   [k: string]: unknown;
 }
 
 export default function BoxPlot({
   targetParam,
-  csvPath = "/EStL_AllDataJoin.csv",
+  csvPath = "/EStL_AllDataJoin2.csv",
   height = 460,
   margin = { top: 24, right: 20, bottom: 64, left: 64 },
   tickRotate = -30,
@@ -78,12 +80,12 @@ export default function BoxPlot({
     const groups = new Map<string, number[]>();
 
     for (const r of rows) {
-      const paramNormalized = String(r.ParamName ?? "")
+      const paramNormalized = String(r.ParamName2 ?? r.ParamName ?? "")
         .trim()
         .replace(/\s+/g, " ");
       if (!paramNormalized) continue;
       if (paramNormalized !== targetNormalized) continue;
-      const raw = r.Result_Value ?? (null as unknown);
+      const raw = (r.Result_Value_ugL ?? r.Result_Value) ?? (null as unknown);
       const v = coerceNumber(raw);
       if (v === null) continue;
       const site = r.Name?.toString().trim();

@@ -1,12 +1,26 @@
 export function toMDY(dateTime: string): string | null {
   if (!dateTime) return null;
   const first = String(dateTime).trim().split(/\s+/)[0] || ""; // "10/1/2020"
-  const [mRaw, dRaw, yRaw] = first.split("/");
-  if (!mRaw || !dRaw || !yRaw) return null;
-  const mm = mRaw.padStart(2, "0");
-  const dd = dRaw.padStart(2, "0");
-  const yyyy = yRaw; // year is always 4 digits
-  return `${mm}/${dd}/${yyyy}`;
+  // Support both "MM/DD/YYYY" and "YYYY-MM-DD"
+  if (first.includes("/")) {
+    const [mRaw, dRaw, yRaw] = first.split("/");
+    if (!mRaw || !dRaw || !yRaw) return null;
+    const mm = mRaw.padStart(2, "0");
+    const dd = dRaw.padStart(2, "0");
+    const yyyy = yRaw;
+    return `${mm}/${dd}/${yyyy}`;
+  }
+
+  if (first.includes("-")) {
+    const [yRaw, mRaw, dRaw] = first.split("-");
+    if (!yRaw || !mRaw || !dRaw) return null;
+    const mm = mRaw.padStart(2, "0");
+    const dd = dRaw.padStart(2, "0");
+    const yyyy = yRaw;
+    return `${mm}/${dd}/${yyyy}`;
+  }
+
+  return null;
 }
 
 export function mdySortKey(mdy: string): number | null {

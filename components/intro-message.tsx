@@ -39,6 +39,10 @@ export default function IntroMessage() {
               promote analysis of contaminant trends through time compared
               against the river’s physical dynamics.
             </p>
+            <p className="text-lg">
+              NOTE: Unless otherwise specified, all concentration data is
+              presented in parts per billion (ppb).{" "}
+            </p>
             <p className="text-lg">…</p>
             <p className="text-lg">
               This dashboard is currently under development.

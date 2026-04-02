@@ -31,10 +31,12 @@ const DEFAULT_COLORS = [
 // type Site = "Mo Ave. Well 2" | "Mo Ave. Well 3" | "Mo Ave. Well 4";
 
 interface CsvRow {
-  ParamName: string;
+  ParamName2?: string;
+  ParamName?: string;
   Name: string;
   Start_Date: string; // for example: "10/1/2020 12:00:00 AM"
-  Result_Value?: number | string; // Conentration
+  Result_Value_ugL?: number | string; // Concentration in ug/L
+  Result_Value?: number | string; // legacy fallback
   [k: string]: unknown; // there could be more columns, type is unknown
 }
 
@@ -53,7 +55,7 @@ type WidePoint = {
 export default function TimeSeriesPlot({
   targetParam,
   sites,
-  csvPath = "/EStL_AllDataJoin.csv",
+  csvPath = "/EStL_AllDataJoin2.csv",
   colors = {},
   height = 440,
   compact = false,
@@ -73,13 +75,14 @@ export default function TimeSeriesPlot({
     const targetSet = new Set(sites);
 
     for (const r of rows) {
-      if (r.ParamName !== targetParam) continue;
+      const paramName = String(r.ParamName2 ?? r.ParamName ?? "").trim();
+      if (paramName !== targetParam) continue;
       if (!targetSet.has(r.Name)) continue;
 
       const mdy = toMDY(String(r.Start_Date ?? ""));
       if (!mdy) continue;
 
-      const rawValue = r.Result_Value ?? (null as unknown);
+      const rawValue = (r.Result_Value_ugL ?? r.Result_Value) ?? (null as unknown);
       const v = coerceNumber(rawValue);
       if (v === null) continue;
 

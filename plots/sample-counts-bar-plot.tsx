@@ -22,7 +22,9 @@ type SampleCountsBarPlotProps = {
 
 interface CsvRow {
   Name: string;
-  ParamName: string;
+  ParamName2?: string;
+  ParamName?: string;
+  Parameter_Unit?: string;
   [k: string]: unknown;
 }
 
@@ -33,7 +35,7 @@ function normalizeText(s: unknown) {
 }
 
 export default function SampleCountsBarPlot({
-  csvPath = "/EStL_AllDataJoin_Unified.csv",
+  csvPath = "/EStL_AllDataJoin2.csv",
   siteName,
   topN = 10,
   height = 300,
@@ -51,10 +53,15 @@ export default function SampleCountsBarPlot({
       const rowSite = normalizeText(row.Name);
       if (!rowSite || rowSite !== siteNorm) continue;
 
-      const paramNorm = normalizeText(row.ParamName);
+      const paramNorm = normalizeText(row.ParamName2 ?? row.ParamName);
       if (!paramNorm) continue;
 
-      if (unit && !paramNorm.includes(unit)) continue;
+      if (unit) {
+        const unitText = unit.replace(/[()]/g, "").trim().toLowerCase();
+        const paramHasUnit = paramNorm.toLowerCase().includes(unit.toLowerCase());
+        const rowUnit = normalizeText(row.Parameter_Unit).toLowerCase();
+        if (!paramHasUnit && rowUnit !== unitText) continue;
+      }
 
       counts.set(paramNorm, (counts.get(paramNorm) ?? 0) + 1);
     }

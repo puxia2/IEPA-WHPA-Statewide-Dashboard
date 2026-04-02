@@ -3,12 +3,12 @@
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChartNoAxesCombined, MapPin, KeyboardIcon } from "lucide-react";
+import { ChartNoAxesCombined, MapPin, Flame } from "lucide-react";
 
 const icons = {
   dashboard: ChartNoAxesCombined,
-  map: MapPin,
-  query: KeyboardIcon,
+  overview: MapPin,
+  heatmap: Flame,
 };
 
 interface SidebarItem {

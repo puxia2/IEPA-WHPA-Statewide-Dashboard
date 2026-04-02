@@ -129,12 +129,12 @@ export function RiverLevelPlotRealTime({
   }
 
   return (
-    <div className="flex h-[400px] w-full flex-col gap-2 mt-4 p-4">
+    <div className="mt-4 flex w-full flex-col gap-2 p-4" style={{ height }}>
       <div className="flex items-center justify-center h-[32px] font-bold text-2xl">
         Daily Mississippi River Water Level (ft)
       </div>
 
-      <div className="h-[calc(100%-32px)]">
+      <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={plotData}
