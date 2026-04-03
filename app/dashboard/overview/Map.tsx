@@ -319,8 +319,18 @@ export default function MyMap({ position, zoom }: MyMapProps) {
             <Button
               variant="outline"
               onClick={() => {
+                setSelectedSiteIds([56, 58, 60, 96, 556, 559]);
+                setSelectedParameterName("Chlorobenzene");
+              }}
+            >
+              Select all IDOT Sites (D)
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => {
                 setSelectedSiteIds([85, 86, 87, 93, 94, 95]);
-                setSelectedParameterName("Chlorobenzene (ug/L)");
+                setSelectedParameterName("Chlorobenzene");
               }}
             >
               Select all GWE Sites
@@ -330,7 +340,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
               variant="outline"
               onClick={() => {
                 setSelectedSiteIds([82, 83, 84, 549, 550, 551, 552]);
-                setSelectedParameterName("Chlorobenzene (ug/L)");
+                setSelectedParameterName("Chlorobenzene");
               }}
             >
               Select all ESL Sites
@@ -342,7 +352,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
                 setSelectedSiteIds([
                   68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 261,
                 ]);
-                setSelectedParameterName("Chlorobenzene (ug/L)");
+                setSelectedParameterName("Chlorobenzene");
               }}
             >
               Select all BWMW Sites
