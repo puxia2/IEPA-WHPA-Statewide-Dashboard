@@ -18,7 +18,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
 import { useCsvData } from "@/components/csv-reader";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import MarkerClusterGroup from "react-leaflet-markercluster";
 import "leaflet/dist/leaflet.css";
@@ -150,7 +150,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     for (const row of rows) {
       const station_id = Number(row.Station_ID || "");
       const parameterName = String(
-        row.ParamName2 || row.ParamName || ""
+        row.ParamName2 || row.ParamName || "",
       ).trim();
       if (!parameterName || !Number.isFinite(station_id)) continue;
 
@@ -170,18 +170,18 @@ export default function MyMap({ position, zoom }: MyMapProps) {
   // array of sites that are selected, each site is an object with name, station_id, lat, lng
   const selectedSites = useMemo(
     () => sites.filter((site) => selectedSiteIds.includes(site.station_id)),
-    [sites, selectedSiteIds]
+    [sites, selectedSiteIds],
   );
   const selectedSiteNames = useMemo(
     () => selectedSites.map((site) => site.name),
-    [selectedSites]
+    [selectedSites],
   );
 
   // array of parameter names that are available for allthe selected sites (intersection)
   const availableParameterNames = useMemo(() => {
     if (selectedSites.length === 0) return [];
     const paramArrays = selectedSiteIds.map(
-      (station_id) => parameterNames.get(station_id) ?? []
+      (station_id) => parameterNames.get(station_id) ?? [],
     );
     if (paramArrays.length === 1) return paramArrays[0];
     const [first, ...rest] = paramArrays;
@@ -205,7 +205,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     setSelectedParameterName((prev) =>
       prev && availableParameterNames.includes(prev)
         ? prev
-        : availableParameterNames[0]
+        : availableParameterNames[0],
     );
   }, [availableParameterNames]);
 
@@ -215,7 +215,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
       (prev) =>
         prev.includes(station_id)
           ? prev.filter((id) => id !== station_id) // remove the site from the selection
-          : [...prev, station_id] // add the site to the selection
+          : [...prev, station_id], // add the site to the selection
     );
   };
 
@@ -262,12 +262,29 @@ export default function MyMap({ position, zoom }: MyMapProps) {
 
   const [gridWidth, setGridWidth] = useState(1200);
   const [currentBreakpoint, setCurrentBreakpoint] = useState("lg");
+  const gridContainerRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const updateWidth = () => setGridWidth(window.innerWidth - 32);
+
+    const updateWidth = () => {
+      const containerWidth = gridContainerRef.current?.clientWidth;
+      if (containerWidth && containerWidth > 0) {
+        setGridWidth(containerWidth);
+      }
+    };
+
     updateWidth();
+    const resizeObserver = new ResizeObserver(updateWidth);
+    if (gridContainerRef.current) {
+      resizeObserver.observe(gridContainerRef.current);
+    }
     window.addEventListener("resize", updateWidth);
-    return () => window.removeEventListener("resize", updateWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
   }, []);
 
   const chartHeights = useMemo(() => {
@@ -290,254 +307,260 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         Default Layout
       </Button>
       {/* Grid Layout Container */}
-      <Responsive
-        className="layout"
-        layouts={layouts}
-        onLayoutChange={onLayoutsChange}
-        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-        onBreakpointChange={(newBreakpoint) =>
-          setCurrentBreakpoint(newBreakpoint)
-        }
-        rowHeight={50}
-        margin={[8, 8]}
-        containerPadding={[0, 0]}
-        width={gridWidth}
-        dragConfig={{
-          enabled: true,
-          handle: ".panel-drag-handle",
-          cancel: ".panel-no-drag",
-        }}
-        resizeConfig={{ enabled: true }}
-      >
-        <div
-          key="selection"
-          className="panel mb-4 bg-white rounded-lg shadow-sm border overflow-hidden"
+      <div ref={gridContainerRef} className="w-full">
+        <Responsive
+          className="layout"
+          layouts={layouts}
+          onLayoutChange={onLayoutsChange}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+          onBreakpointChange={(newBreakpoint) =>
+            setCurrentBreakpoint(newBreakpoint)
+          }
+          rowHeight={50}
+          margin={[8, 8]}
+          containerPadding={[0, 0]}
+          width={gridWidth}
+          dragConfig={{
+            enabled: true,
+            handle: ".panel-drag-handle",
+            cancel: ".panel-no-drag",
+          }}
+          resizeConfig={{ enabled: true }}
         >
-          {/* Quick select buttons */}
-          <div className="px-2 py-1 text-xs font-semibold border-b flex justify-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedSiteIds([56, 58, 60, 96, 556, 559]);
-                setSelectedParameterName("Chlorobenzene");
-              }}
-            >
-              Select all IDOT Sites (D)
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedSiteIds([85, 86, 87, 93, 94, 95]);
-                setSelectedParameterName("Chlorobenzene");
-              }}
-            >
-              Select all GWE Sites
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedSiteIds([82, 83, 84, 549, 550, 551, 552]);
-                setSelectedParameterName("Chlorobenzene");
-              }}
-            >
-              Select all ESL Sites
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedSiteIds([
-                  68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 261,
-                ]);
-                setSelectedParameterName("Chlorobenzene");
-              }}
-            >
-              Select all BWMW Sites
-            </Button>
-          </div>
-
-          {/* Search by sites */}
-          <div className="p-2 panel-no-drag">
-            <SearchBySites
-              sites={sites}
-              selectedSiteIds={selectedSiteIds}
-              onSelectedSiteIdsChange={setSelectedSiteIds}
-            />
-          </div>
-        </div>
-
-        {/* Map Component */}
-        <div
-          key="map"
-          className="panel bg-white rounded-lg shadow-sm border overflow-hidden relative flex flex-col"
-          style={{ position: "relative" }}
-        >
-          <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
-            Map
-          </div>
           <div
-            className="flex-1 w-full panel-no-drag"
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
+            key="selection"
+            className="panel mb-4 bg-white rounded-lg shadow-sm border overflow-hidden"
           >
-            <MapContainer
-              center={position}
-              zoom={zoom}
-              scrollWheelZoom={true}
-              style={{ height: "100%", width: "100%" }}
+            {/* Quick select buttons */}
+            <div className="px-2 py-1 text-xs font-semibold border-b flex justify-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([56, 58, 60, 96, 556, 559]);
+                  setSelectedParameterName("Chlorobenzene");
+                }}
+              >
+                Select all IDOT Sites (D)
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([85, 86, 87, 93, 94, 95]);
+                  setSelectedParameterName("Chlorobenzene");
+                }}
+              >
+                Select all GWE Sites
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([82, 83, 84, 549, 550, 551, 552]);
+                  setSelectedParameterName("Chlorobenzene");
+                }}
+              >
+                Select all ESL Sites
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([
+                    68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 261,
+                  ]);
+                  setSelectedParameterName("Chlorobenzene");
+                }}
+              >
+                Select all BWMW Sites
+              </Button>
+            </div>
+
+            {/* Search by sites */}
+            <div className="p-2 panel-no-drag">
+              <SearchBySites
+                sites={sites}
+                selectedSiteIds={selectedSiteIds}
+                onSelectedSiteIdsChange={setSelectedSiteIds}
+              />
+            </div>
+          </div>
+
+          {/* Map Component */}
+          <div
+            key="map"
+            className="panel bg-white rounded-lg shadow-sm border overflow-hidden relative flex flex-col"
+            style={{ position: "relative" }}
+          >
+            <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
+              Map
+            </div>
+            <div
+              className="flex-1 w-full panel-no-drag"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
             >
-              <MapAutoResize />
-              <LayersControl position="topright">
-                <BaseLayer checked name="Streets">
-                  {/* street map */}
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                </BaseLayer>
+              <MapContainer
+                center={position}
+                zoom={zoom}
+                scrollWheelZoom={true}
+                style={{ height: "100%", width: "100%" }}
+              >
+                <MapAutoResize />
+                <LayersControl position="topright">
+                  <BaseLayer checked name="Streets">
+                    {/* street map */}
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                  </BaseLayer>
 
-                <BaseLayer name="Satellite (Esri)">
-                  <TileLayer
-                    attribution="&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS"
-                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                  />
-                </BaseLayer>
-              </LayersControl>
+                  <BaseLayer name="Satellite (Esri)">
+                    <TileLayer
+                      attribution="&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS"
+                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    />
+                  </BaseLayer>
+                </LayersControl>
 
-              {loading && (
-                <div className="absolute top-4 left-4 z-[1000] bg-white p-2 rounded shadow">
-                  Loading sites...
+                {loading && (
+                  <div className="absolute top-4 left-4 z-[1000] bg-white p-2 rounded shadow">
+                    Loading sites...
+                  </div>
+                )}
+                {error && (
+                  <div className="absolute top-4 left-4 z-[1000] bg-red-100 text-red-800 p-2 rounded shadow">
+                    Error: {error}
+                  </div>
+                )}
+
+                <MarkerClusterGroup>
+                  {sites.map((site, index) => {
+                    const isSelected = selectedSiteIds.includes(
+                      site.station_id,
+                    );
+                    return (
+                      <CircleMarker
+                        key={`${site.name}-${index}`}
+                        center={[site.lat, site.lng]}
+                        radius={isSelected ? 15 : 12}
+                        // use pathOptions to set the color and fill color of the circle
+                        // not working with color and fillColor props
+                        pathOptions={{
+                          color: isSelected ? "blue" : "black", // border color
+                          fillColor: isSelected ? "blue" : "red", // fill color
+                          fillOpacity: isSelected ? 0.6 : 0.5,
+                        }}
+                        eventHandlers={{
+                          click: () => {
+                            toggleSiteSelection(site.station_id);
+                          },
+                          mouseover: (e) => e.target.openPopup(),
+                        }}
+                      >
+                        <PopupCard site={site} isSelected={isSelected} />
+                      </CircleMarker>
+                    );
+                  })}
+                </MarkerClusterGroup>
+              </MapContainer>
+            </div>
+          </div>
+
+          {/* Time Series Plot Component */}
+          <div
+            key="timeSeries"
+            className="panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
+          >
+            <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
+              Time Series Plot
+            </div>
+
+            {/* Control panel - fixed at top of the time series plot component */}
+            <div className="mt-2 flex justify-end gap-2 px-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([]);
+                  setSelectedParameterName(null);
+                }}
+              >
+                Reset
+              </Button>
+
+              <Select
+                value={selectedParameterName ?? ""}
+                onValueChange={(value) =>
+                  setSelectedParameterName(value ?? null)
+                }
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select a parameter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Parameters</SelectLabel>
+                    {availableParameterNames?.map((param) => (
+                      <SelectItem key={param} value={param}>
+                        {param}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div
+              className="panel-no-drag flex-1 min-h-0 w-full overflow-hidden"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
+              <TimeSeriesPlotDatestamp
+                targetParam={selectedParameterName ?? ""}
+                sites={selectedSiteNames}
+                xDomain={domain}
+                onInitialDomain={handleInitialDomain}
+                height={chartHeights.timeSeries}
+              />
+            </div>
+          </div>
+
+          {/* River Level Plot Component */}
+          <div
+            key="riverLevel"
+            className="panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
+          >
+            <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
+              River Level Plot
+            </div>
+            <div
+              className="panel-no-drag flex-1 min-h-0 w-full overflow-hidden"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
+              <RiverLevelPlotRealTime
+                csvPath="/dv.csv"
+                site="07010000"
+                startDT="2000-01-02"
+                parameterCd="00065"
+                xDomain={domain}
+                onDomainChange={setDomain}
+                refreshMs={5 * 60 * 1000}
+                statCd="00003"
+                height={chartHeights.riverLevel}
+              />
+              {domain && (
+                <div className="px-4 pb-2 flex justify-between text-sm text-muted-foreground">
+                  <span>Start: {dayjs(domain[0]).format("YYYY-MM-DD")}</span>
+                  <span>End: {dayjs(domain[1]).format("YYYY-MM-DD")}</span>
                 </div>
               )}
-              {error && (
-                <div className="absolute top-4 left-4 z-[1000] bg-red-100 text-red-800 p-2 rounded shadow">
-                  Error: {error}
-                </div>
-              )}
-
-              <MarkerClusterGroup>
-                {sites.map((site, index) => {
-                  const isSelected = selectedSiteIds.includes(site.station_id);
-                  return (
-                    <CircleMarker
-                      key={`${site.name}-${index}`}
-                      center={[site.lat, site.lng]}
-                      radius={isSelected ? 15 : 12}
-                      // use pathOptions to set the color and fill color of the circle
-                      // not working with color and fillColor props
-                      pathOptions={{
-                        color: isSelected ? "blue" : "black", // border color
-                        fillColor: isSelected ? "blue" : "red", // fill color
-                        fillOpacity: isSelected ? 0.6 : 0.5,
-                      }}
-                      eventHandlers={{
-                        click: () => {
-                          toggleSiteSelection(site.station_id);
-                        },
-                        mouseover: (e) => e.target.openPopup(),
-                      }}
-                    >
-                      <PopupCard site={site} isSelected={isSelected} />
-                    </CircleMarker>
-                  );
-                })}
-              </MarkerClusterGroup>
-            </MapContainer>
+            </div>
           </div>
-        </div>
-
-        {/* Time Series Plot Component */}
-        <div
-          key="timeSeries"
-          className="panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
-        >
-          <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
-            Time Series Plot
-          </div>
-
-          {/* Control panel - fixed at top of the time series plot component */}
-          <div className="mt-2 flex justify-end gap-2 px-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedSiteIds([]);
-                setSelectedParameterName(null);
-              }}
-            >
-              Reset
-            </Button>
-
-            <Select
-              value={selectedParameterName ?? ""}
-              onValueChange={(value) => setSelectedParameterName(value ?? null)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select a parameter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Parameters</SelectLabel>
-                  {availableParameterNames?.map((param) => (
-                    <SelectItem key={param} value={param}>
-                      {param}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div
-            className="panel-no-drag flex-1 min-h-0 w-full overflow-hidden"
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            <TimeSeriesPlotDatestamp
-              targetParam={selectedParameterName ?? ""}
-              sites={selectedSiteNames}
-              xDomain={domain}
-              onInitialDomain={handleInitialDomain}
-              height={chartHeights.timeSeries}
-            />
-          </div>
-        </div>
-
-        {/* River Level Plot Component */}
-        <div
-          key="riverLevel"
-          className="panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
-        >
-          <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
-            River Level Plot
-          </div>
-          <div
-            className="panel-no-drag flex-1 min-h-0 w-full overflow-hidden"
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            <RiverLevelPlotRealTime
-              csvPath="/dv.csv"
-              site="07010000"
-              startDT="2000-01-02"
-              parameterCd="00065"
-              xDomain={domain}
-              onDomainChange={setDomain}
-              refreshMs={5 * 60 * 1000}
-              statCd="00003"
-              height={chartHeights.riverLevel}
-            />
-            {domain && (
-              <div className="px-4 pb-2 flex justify-between text-sm text-muted-foreground">
-                <span>Start: {dayjs(domain[0]).format("YYYY-MM-DD")}</span>
-                <span>End: {dayjs(domain[1]).format("YYYY-MM-DD")}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </Responsive>
+        </Responsive>
+      </div>
     </div>
   );
 }
