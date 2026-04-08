@@ -1,5 +1,3 @@
-import { ChartNoAxesCombined, KeyboardIcon, MapPin } from "lucide-react";
-import Link from "next/link";
 import Image from "next/image";
 
 import {
@@ -25,12 +23,12 @@ const items = [
   {
     title: "Overview",
     url: "/dashboard/overview",
-    icon: "map",
+    icon: "overview",
   },
   {
-    title: "Query",
-    url: "/dashboard/query",
-    icon: "query",
+    title: "HeatMap",
+    url: "/dashboard/heatmap",
+    icon: "heatmap",
   },
 ];
 
@@ -60,9 +58,9 @@ export function AppSidebar() {
                     <MenuItem
                       item={
                         item as {
-                          title: "Dashboard" | "Map" | "Query";
+                          title: "HeatMap" | "Overview";
                           url: string;
-                          icon: "dashboard" | "map" | "query";
+                          icon: "heatmap" | "overview";
                         }
                       }
                     />

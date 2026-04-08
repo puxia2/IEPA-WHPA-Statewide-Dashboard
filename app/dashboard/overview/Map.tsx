@@ -3,6 +3,7 @@ import {
   TileLayer,
   CircleMarker,
   LayersControl,
+  useMap,
 } from "react-leaflet";
 import {
   Select,
@@ -17,12 +18,12 @@ import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
 import { useCsvData } from "@/components/csv-reader";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import MarkerClusterGroup from "react-leaflet-markercluster";
 import "leaflet/dist/leaflet.css";
 import "react-leaflet-markercluster/styles";
-import GridLayout from "react-grid-layout";
+import { Responsive } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 
@@ -35,6 +36,33 @@ import IntroMessage from "@/components/intro-message";
 
 const { BaseLayer } = LayersControl;
 
+function MapAutoResize() {
+  const map = useMap();
+
+  useEffect(() => {
+    const container = map.getContainer();
+    if (!container) return;
+
+    // Leaflet does not always detect parent size changes from grid layout;
+    // observe container resize and force map size recalculation.
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    resizeObserver.observe(container);
+
+    const timer = window.setTimeout(() => {
+      map.invalidateSize();
+    }, 50);
+
+    return () => {
+      window.clearTimeout(timer);
+      resizeObserver.disconnect();
+    };
+  }, [map]);
+
+  return null;
+}
+
 interface MyMapProps {
   position: [number, number];
   zoom: number;
@@ -46,7 +74,8 @@ interface mapRow {
   Station_ID: number;
   Depth_Qual: string;
   Parameter_Code: number;
-  ParamName: string;
+  ParamName2?: string;
+  ParamName?: string;
   Name: string;
   Organization_Name: string;
   [k: string]: unknown;
@@ -62,7 +91,7 @@ interface Site {
 }
 
 export default function MyMap({ position, zoom }: MyMapProps) {
-  const { rows, loading, error } = useCsvData<mapRow>("/EStL_AllDataJoin.csv");
+  const { rows, loading, error } = useCsvData<mapRow>("/EStL_AllDataJoin2.csv");
   // multiple sites can be selected at once, array of station_id
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
   const [selectedParameterName, setSelectedParameterName] = useState<
@@ -120,7 +149,9 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     const parameterNameMap = new Map<number, Set<string>>(); // station_id -> Set<parameterName>
     for (const row of rows) {
       const station_id = Number(row.Station_ID || "");
-      const parameterName = String(row.ParamName || "").trim();
+      const parameterName = String(
+        row.ParamName2 || row.ParamName || "",
+      ).trim();
       if (!parameterName || !Number.isFinite(station_id)) continue;
 
       if (!parameterNameMap.has(station_id)) {
@@ -139,18 +170,18 @@ export default function MyMap({ position, zoom }: MyMapProps) {
   // array of sites that are selected, each site is an object with name, station_id, lat, lng
   const selectedSites = useMemo(
     () => sites.filter((site) => selectedSiteIds.includes(site.station_id)),
-    [sites, selectedSiteIds]
+    [sites, selectedSiteIds],
   );
   const selectedSiteNames = useMemo(
     () => selectedSites.map((site) => site.name),
-    [selectedSites]
+    [selectedSites],
   );
 
   // array of parameter names that are available for allthe selected sites (intersection)
   const availableParameterNames = useMemo(() => {
     if (selectedSites.length === 0) return [];
     const paramArrays = selectedSiteIds.map(
-      (station_id) => parameterNames.get(station_id) ?? []
+      (station_id) => parameterNames.get(station_id) ?? [],
     );
     if (paramArrays.length === 1) return paramArrays[0];
     const [first, ...rest] = paramArrays;
@@ -174,7 +205,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     setSelectedParameterName((prev) =>
       prev && availableParameterNames.includes(prev)
         ? prev
-        : availableParameterNames[0]
+        : availableParameterNames[0],
     );
   }, [availableParameterNames]);
 
@@ -184,256 +215,352 @@ export default function MyMap({ position, zoom }: MyMapProps) {
       (prev) =>
         prev.includes(station_id)
           ? prev.filter((id) => id !== station_id) // remove the site from the selection
-          : [...prev, station_id] // add the site to the selection
+          : [...prev, station_id], // add the site to the selection
     );
   };
 
-  // Grid layout configuration
-  // Adjusted to match original sizes: Map ~800px, TimeSeries ~440px, RiverLevel ~400px
-  const [layouts, setLayouts] = useState([
-    { i: "selection", x: 0, y: 0, w: 11, h: 1, minW: 4, minH: 8, static: true },
-    { i: "map", x: 0, y: 2, w: 6, h: 7, minW: 4, minH: 8 }, // ~800px (16 * 50px)
-    { i: "timeSeries", x: 6, y: 2, w: 5, h: 4, minW: 4, minH: 4 }, // ~450px (9 * 50px)
-    { i: "riverLevel", x: 6, y: 9, w: 5, h: 3, minW: 4, minH: 4 }, // ~400px (8 * 50px)
-  ]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onLayoutChange = (layout: any) => {
-    setLayouts(layout);
+  // Responsive layout configuration for different screen sizes
+  const defaultLayout = {
+    lg: [
+      { i: "selection", x: 0, y: 0, w: 12, h: 2, static: true },
+      { i: "map", x: 0, y: 2, w: 7, h: 17, minW: 4, minH: 10 },
+      { i: "timeSeries", x: 7, y: 2, w: 5, h: 9, minW: 4, minH: 7 },
+      { i: "riverLevel", x: 7, y: 11, w: 5, h: 8, minW: 4, minH: 6 },
+    ],
+    md: [
+      { i: "selection", x: 0, y: 0, w: 10, h: 2, static: true },
+      { i: "map", x: 0, y: 2, w: 10, h: 10, minH: 7 },
+      { i: "timeSeries", x: 0, y: 12, w: 10, h: 8, minH: 6 },
+      { i: "riverLevel", x: 0, y: 20, w: 10, h: 7, minH: 5 },
+    ],
+    sm: [
+      { i: "selection", x: 0, y: 0, w: 6, h: 2, static: true },
+      { i: "map", x: 0, y: 2, w: 6, h: 9, minH: 6 },
+      { i: "timeSeries", x: 0, y: 11, w: 6, h: 8, minH: 6 },
+      { i: "riverLevel", x: 0, y: 19, w: 6, h: 7, minH: 5 },
+    ],
+    xs: [
+      { i: "selection", x: 0, y: 0, w: 4, h: 3, static: true },
+      { i: "map", x: 0, y: 3, w: 4, h: 8, minH: 6 },
+      { i: "timeSeries", x: 0, y: 11, w: 4, h: 8, minH: 6 },
+      { i: "riverLevel", x: 0, y: 19, w: 4, h: 7, minH: 5 },
+    ],
+    xxs: [
+      { i: "selection", x: 0, y: 0, w: 2, h: 3, static: true },
+      { i: "map", x: 0, y: 3, w: 2, h: 8, minH: 6 },
+      { i: "timeSeries", x: 0, y: 11, w: 2, h: 8, minH: 6 },
+      { i: "riverLevel", x: 0, y: 19, w: 2, h: 7, minH: 5 },
+    ],
   };
 
+  const [layouts, setLayouts] = useState(defaultLayout);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onLayoutsChange = (_currentLayout: any, allLayouts: any) => {
+    setLayouts(allLayouts);
+  };
+
+  const [gridWidth, setGridWidth] = useState(1200);
+  const [currentBreakpoint, setCurrentBreakpoint] = useState("lg");
+  const gridContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const updateWidth = () => {
+      const containerWidth = gridContainerRef.current?.clientWidth;
+      if (containerWidth && containerWidth > 0) {
+        setGridWidth(containerWidth);
+      }
+    };
+
+    updateWidth();
+    const resizeObserver = new ResizeObserver(updateWidth);
+    if (gridContainerRef.current) {
+      resizeObserver.observe(gridContainerRef.current);
+    }
+    window.addEventListener("resize", updateWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateWidth);
+    };
+  }, []);
+
+  const chartHeights = useMemo(() => {
+    if (currentBreakpoint === "xxs" || currentBreakpoint === "xs") {
+      return { timeSeries: 230, riverLevel: 220 };
+    }
+    if (currentBreakpoint === "sm") {
+      return { timeSeries: 250, riverLevel: 240 };
+    }
+    if (currentBreakpoint === "md") {
+      return { timeSeries: 290, riverLevel: 270 };
+    }
+    return { timeSeries: 320, riverLevel: 290 };
+  }, [currentBreakpoint]);
+
   return (
-    <div className="w-full h-screen p-1">
+    <div className="w-full min-h-screen p-1">
       <IntroMessage />
+      <Button onClick={() => setLayouts(defaultLayout)} className="mb-4">
+        Default Layout
+      </Button>
       {/* Grid Layout Container */}
-      {/* @ts-ignore - react-grid-layout types may not match exactly */}
-      <GridLayout
-        className="layout"
-        layout={layouts}
-        onLayoutChange={onLayoutChange}
-        cols={12}
-        rowHeight={50}
-        width={typeof window !== "undefined" ? window.innerWidth - 32 : 1200}
-        isDraggable
-        isResizable
-        draggableHandle=".panel-drag-handle"
-        draggableCancel=".panel-no-drag"
-      >
-        <div
-          key="selection"
-          className="panel mb-4 bg-white rounded-lg shadow-sm border overflow-hidden"
+      <div ref={gridContainerRef} className="w-full">
+        <Responsive
+          className="layout"
+          layouts={layouts}
+          onLayoutChange={onLayoutsChange}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+          cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+          onBreakpointChange={(newBreakpoint) =>
+            setCurrentBreakpoint(newBreakpoint)
+          }
+          rowHeight={50}
+          margin={[8, 8]}
+          containerPadding={[0, 0]}
+          width={gridWidth}
+          dragConfig={{
+            enabled: true,
+            handle: ".panel-drag-handle",
+            cancel: ".panel-no-drag",
+          }}
+          resizeConfig={{ enabled: true }}
         >
-          {/* Quick select buttons */}
-          <div className="px-2 py-1 text-xs font-semibold border-b flex justify-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedSiteIds([85, 86, 87, 93, 94, 95]);
-                setSelectedParameterName("Chlorobenzene (ug/L)");
-              }}
-            >
-              Select all GWE Sites
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedSiteIds([82, 83, 84, 549, 550, 551, 552]);
-                setSelectedParameterName("Chlorobenzene (ug/L)");
-              }}
-            >
-              Select all ESL Sites
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedSiteIds([
-                  68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 261,
-                ]);
-                setSelectedParameterName("Chlorobenzene (ug/L)");
-              }}
-            >
-              Select all BWMW Sites
-            </Button>
-          </div>
-
-          {/* Search by sites */}
-          <div className="p-2 panel-no-drag">
-            <SearchBySites
-              sites={sites}
-              selectedSiteIds={selectedSiteIds}
-              onSelectedSiteIdsChange={setSelectedSiteIds}
-            />
-          </div>
-        </div>
-
-        {/* Map Component */}
-        <div
-          key="map"
-          className="panel bg-white rounded-lg shadow-sm border overflow-hidden relative flex flex-col"
-          style={{ position: "relative" }}
-        >
-          <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
-            Map
-          </div>
           <div
-            className="flex-1 w-full panel-no-drag"
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
+            key="selection"
+            className="panel mb-4 bg-white rounded-lg shadow-sm border overflow-hidden"
           >
-            <MapContainer
-              center={position}
-              zoom={zoom}
-              scrollWheelZoom={true}
-              style={{ height: "100%", width: "100%" }}
+            {/* Quick select buttons */}
+            <div className="px-2 py-1 text-xs font-semibold border-b flex justify-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([56, 58, 60, 96, 556, 559]);
+                  setSelectedParameterName("Chlorobenzene");
+                }}
+              >
+                Select all IDOT Sites (D)
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([85, 86, 87, 93, 94, 95]);
+                  setSelectedParameterName("Chlorobenzene");
+                }}
+              >
+                Select all GWE Sites
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([82, 83, 84, 549, 550, 551, 552]);
+                  setSelectedParameterName("Chlorobenzene");
+                }}
+              >
+                Select all ESL Sites
+              </Button>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([
+                    68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 261,
+                  ]);
+                  setSelectedParameterName("Chlorobenzene");
+                }}
+              >
+                Select all BWMW Sites
+              </Button>
+            </div>
+
+            {/* Search by sites */}
+            <div className="p-2 panel-no-drag">
+              <SearchBySites
+                sites={sites}
+                selectedSiteIds={selectedSiteIds}
+                onSelectedSiteIdsChange={setSelectedSiteIds}
+              />
+            </div>
+          </div>
+
+          {/* Map Component */}
+          <div
+            key="map"
+            className="panel bg-white rounded-lg shadow-sm border overflow-hidden relative flex flex-col"
+            style={{ position: "relative" }}
+          >
+            <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
+              Map
+            </div>
+            <div
+              className="flex-1 w-full panel-no-drag"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
             >
-              <LayersControl position="topright">
-                <BaseLayer checked name="Streets">
-                  {/* street map */}
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                </BaseLayer>
+              <MapContainer
+                center={position}
+                zoom={zoom}
+                scrollWheelZoom={true}
+                style={{ height: "100%", width: "100%" }}
+              >
+                <MapAutoResize />
+                <LayersControl position="topright">
+                  <BaseLayer checked name="Streets">
+                    {/* street map */}
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                  </BaseLayer>
 
-                <BaseLayer name="Satellite (Esri)">
-                  <TileLayer
-                    attribution="&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS"
-                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                  />
-                </BaseLayer>
-              </LayersControl>
+                  <BaseLayer name="Satellite (Esri)">
+                    <TileLayer
+                      attribution="&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS"
+                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    />
+                  </BaseLayer>
+                </LayersControl>
 
-              {loading && (
-                <div className="absolute top-4 left-4 z-[1000] bg-white p-2 rounded shadow">
-                  Loading sites...
+                {loading && (
+                  <div className="absolute top-4 left-4 z-[1000] bg-white p-2 rounded shadow">
+                    Loading sites...
+                  </div>
+                )}
+                {error && (
+                  <div className="absolute top-4 left-4 z-[1000] bg-red-100 text-red-800 p-2 rounded shadow">
+                    Error: {error}
+                  </div>
+                )}
+
+                <MarkerClusterGroup>
+                  {sites.map((site, index) => {
+                    const isSelected = selectedSiteIds.includes(
+                      site.station_id,
+                    );
+                    return (
+                      <CircleMarker
+                        key={`${site.name}-${index}`}
+                        center={[site.lat, site.lng]}
+                        radius={isSelected ? 15 : 12}
+                        // use pathOptions to set the color and fill color of the circle
+                        // not working with color and fillColor props
+                        pathOptions={{
+                          color: isSelected ? "blue" : "black", // border color
+                          fillColor: isSelected ? "blue" : "red", // fill color
+                          fillOpacity: isSelected ? 0.6 : 0.5,
+                        }}
+                        eventHandlers={{
+                          click: () => {
+                            toggleSiteSelection(site.station_id);
+                          },
+                          mouseover: (e) => e.target.openPopup(),
+                        }}
+                      >
+                        <PopupCard site={site} isSelected={isSelected} />
+                      </CircleMarker>
+                    );
+                  })}
+                </MarkerClusterGroup>
+              </MapContainer>
+            </div>
+          </div>
+
+          {/* Time Series Plot Component */}
+          <div
+            key="timeSeries"
+            className="panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
+          >
+            <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
+              Time Series Plot
+            </div>
+
+            {/* Control panel - fixed at top of the time series plot component */}
+            <div className="mt-2 flex justify-end gap-2 px-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedSiteIds([]);
+                  setSelectedParameterName(null);
+                }}
+              >
+                Reset
+              </Button>
+
+              <Select
+                value={selectedParameterName ?? ""}
+                onValueChange={(value) =>
+                  setSelectedParameterName(value ?? null)
+                }
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Select a parameter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Parameters</SelectLabel>
+                    {availableParameterNames?.map((param) => (
+                      <SelectItem key={param} value={param}>
+                        {param}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div
+              className="panel-no-drag flex-1 min-h-0 w-full overflow-hidden"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
+              <TimeSeriesPlotDatestamp
+                targetParam={selectedParameterName ?? ""}
+                sites={selectedSiteNames}
+                xDomain={domain}
+                onInitialDomain={handleInitialDomain}
+                height={chartHeights.timeSeries}
+              />
+            </div>
+          </div>
+
+          {/* River Level Plot Component */}
+          <div
+            key="riverLevel"
+            className="panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
+          >
+            <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
+              River Level Plot
+            </div>
+            <div
+              className="panel-no-drag flex-1 min-h-0 w-full overflow-hidden"
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+            >
+              <RiverLevelPlotRealTime
+                csvPath="/dv.csv"
+                site="07010000"
+                startDT="2000-01-02"
+                parameterCd="00065"
+                xDomain={domain}
+                onDomainChange={setDomain}
+                refreshMs={5 * 60 * 1000}
+                statCd="00003"
+                height={chartHeights.riverLevel}
+              />
+              {domain && (
+                <div className="px-4 pb-2 flex justify-between text-sm text-muted-foreground">
+                  <span>Start: {dayjs(domain[0]).format("YYYY-MM-DD")}</span>
+                  <span>End: {dayjs(domain[1]).format("YYYY-MM-DD")}</span>
                 </div>
               )}
-              {error && (
-                <div className="absolute top-4 left-4 z-[1000] bg-red-100 text-red-800 p-2 rounded shadow">
-                  Error: {error}
-                </div>
-              )}
-
-              <MarkerClusterGroup>
-                {sites.map((site, index) => {
-                  const isSelected = selectedSiteIds.includes(site.station_id);
-                  return (
-                    <CircleMarker
-                      key={`${site.name}-${index}`}
-                      center={[site.lat, site.lng]}
-                      radius={isSelected ? 15 : 12}
-                      // use pathOptions to set the color and fill color of the circle
-                      // not working with color and fillColor props
-                      pathOptions={{
-                        color: isSelected ? "blue" : "black", // border color
-                        fillColor: isSelected ? "blue" : "red", // fill color
-                        fillOpacity: isSelected ? 0.6 : 0.5,
-                      }}
-                      eventHandlers={{
-                        click: () => {
-                          toggleSiteSelection(site.station_id);
-                        },
-                        mouseover: (e) => e.target.openPopup(),
-                      }}
-                    >
-                      <PopupCard site={site} isSelected={isSelected} />
-                    </CircleMarker>
-                  );
-                })}
-              </MarkerClusterGroup>
-            </MapContainer>
+            </div>
           </div>
-        </div>
-
-        {/* Time Series Plot Component */}
-        <div
-          key="timeSeries"
-          className="panel bg-white rounded-lg shadow-sm border overflow-hidden"
-        >
-          <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
-            Time Series Plot
-          </div>
-
-          {/* Control panel - fixed at top of the time series plot component */}
-          <div className="mb-4 mt-4 flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelectedSiteIds([]);
-                setSelectedParameterName(null);
-              }}
-            >
-              Reset
-            </Button>
-
-            <Select
-              value={selectedParameterName ?? ""}
-              onValueChange={(value) => setSelectedParameterName(value ?? null)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select a parameter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Parameters</SelectLabel>
-                  {availableParameterNames?.map((param) => (
-                    <SelectItem key={param} value={param}>
-                      {param}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div
-            className="h-full w-full overflow-auto panel-no-drag"
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            <TimeSeriesPlotDatestamp
-              targetParam={selectedParameterName ?? ""}
-              sites={selectedSiteNames}
-              xDomain={domain}
-              onInitialDomain={handleInitialDomain}
-            />
-          </div>
-        </div>
-
-        {/* River Level Plot Component */}
-        <div
-          key="riverLevel"
-          className="panel bg-white rounded-lg shadow-sm border overflow-hidden"
-        >
-          <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
-            River Level Plot
-          </div>
-          <div
-            className="h-full w-full overflow-auto panel-no-drag"
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            <RiverLevelPlotRealTime
-              csvPath="/dv.csv"
-              site="07010000"
-              startDT="2000-01-02"
-              parameterCd="00065"
-              xDomain={domain}
-              onDomainChange={setDomain}
-              refreshMs={5 * 60 * 1000}
-              statCd="00003"
-            />
-            {domain && (
-              <div className="px-4 pb-2 flex justify-between text-sm text-muted-foreground">
-                <span>Start: {dayjs(domain[0]).format("YYYY-MM-DD")}</span>
-                <span>End: {dayjs(domain[1]).format("YYYY-MM-DD")}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </GridLayout>
+        </Responsive>
+      </div>
     </div>
   );
 }

@@ -9,8 +9,8 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Brush,
   Legend,
+  type LegendPayload,
 } from "recharts";
 import dayjs from "dayjs";
 import { useCsvData } from "@/components/csv-reader";
@@ -36,30 +36,37 @@ const DEFAULT_COLORS = [
 export function TimeSeriesPlotDatestamp({
   targetParam,
   sites,
-  csvPath = "/EStL_AllDataJoin.csv",
+  csvPath = "/EStL_AllDataJoin2.csv",
   colors = {},
   height = 440,
   compact = false,
   xDomain,
   onInitialDomain,
 }: TimeSeriesPlotProps) {
-  const { rows } = useCsvData<any>(csvPath);
+  const { rows } = useCsvData<Record<string, unknown>>(csvPath);
 
   const data: WidePoint[] = useMemo(() => {
     const bucket = new Map<string, Map<string, number[]>>();
+    const normalize = (s: unknown) =>
+      String(s ?? "")
+        .trim()
+        .replace(/\s+/g, " ");
+    const selectedSiteSet = new Set(sites.map((s) => normalize(s)));
+    const selectedParam = normalize(targetParam);
 
     for (const r of rows) {
       // Filter by targetParam first (like time-series-plot.tsx does)
-      if (r.ParamName !== targetParam) continue;
+      const paramName = normalize(r.ParamName2 ?? r.ParamName);
+      if (!selectedParam || paramName !== selectedParam) continue;
 
       const mdy = toMDY(String(r.Start_Date ?? ""));
       if (!mdy) continue;
 
-      const v = coerceNumber(r.Result_Value as unknown);
+      const v = coerceNumber((r.Result_Value_ugL ?? r.Result_Value) as unknown);
       if (v === null) continue;
 
-      const site = String(r.Name ?? "");
-      if (!sites.includes(site)) continue;
+      const site = normalize(r.Name);
+      if (!selectedSiteSet.has(site)) continue;
 
       let inner = bucket.get(mdy);
       if (!inner) {
@@ -123,7 +130,7 @@ export function TimeSeriesPlotDatestamp({
   };
 
   return (
-    <div className="flex h-[440px] w-full flex-col gap-2">
+    <div className="flex w-full flex-col gap-2" style={{ height }}>
       <div>
         {/*parameter name*/}
         {/* {!compact && (
@@ -138,7 +145,7 @@ export function TimeSeriesPlotDatestamp({
           </p>
         )}
       </div>
-      <div className="h-[calc(100%-32px)]">
+      <div className="flex-1 min-h-0">
         {data.length ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
@@ -165,7 +172,7 @@ export function TimeSeriesPlotDatestamp({
               />
               <YAxis
                 label={{
-                  value: targetParam,
+                  value: targetParam + "  (ppb)",
                   position: "insideMiddle",
                   angle: -90,
                   offset: 0,
@@ -179,7 +186,15 @@ export function TimeSeriesPlotDatestamp({
                 }
               />
               <Legend
-                onClick={(o) => handleLegendClick((o as any).value as string)}
+                onClick={(o) => {
+                  const payload = o as LegendPayload;
+                  const site =
+                    typeof payload.value === "string"
+                      ? payload.value
+                      : undefined;
+                  if (!site) return;
+                  handleLegendClick(site);
+                }}
               />
               {sites.map((s) => (
                 <Line

@@ -17,13 +17,15 @@ import { useCsvData } from "@/components/csv-reader";
 import BoxPlotSingleSite from "@/plots/box-plot-single-site";
 
 interface CsvRow {
-  ParamName: string;
+  ParamName2?: string;
+  ParamName?: string;
   Name: string;
   Start_Date: string; // 例如 "10/1/2020 12:00:00 AM"
-  Result_Value?: number | string; // Conentration
+  Result_Value_ugL?: number | string; // Concentration in ug/L
+  Result_Value?: number | string; // legacy fallback
   [k: string]: unknown; // there could be more columns, type is unknown
 }
-const csvPath = "/EStL_AllDataJoin_Unified.csv";
+const csvPath = "/EStL_AllDataJoin2.csv";
 
 interface Site {
   name: string;
@@ -36,8 +38,7 @@ interface Site {
 
 export function DialogCard({ siteName }: { siteName: Site }) {
   const { rows, loading, error } = useCsvData<CsvRow>(csvPath);
-  const [selectedugValues, setSelectedugValues] = useState<string[]>([]);
-  const [selectedmgValues, setSelectedmgValues] = useState<string[]>([]);
+  const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const normalize = (p: string) => p.replace(/\s+/g, " ").trim();
@@ -47,31 +48,21 @@ export function DialogCard({ siteName }: { siteName: Site }) {
       new Set(
         rows
           .filter((row) => row.Name === siteName.name)
-          .map((row) => normalize(String(row.ParamName).trim()))
+          .map((row) =>
+            normalize(String(row.ParamName2 ?? row.ParamName ?? "").trim())
+          )
       )
     );
   }, [rows, siteName.name]);
 
-  const ugList = allParamsForSite.filter((p: string) => p.includes("(ug/L)"));
-  const mgList = allParamsForSite.filter((p: string) => p.includes("(mg/L)"));
-
-  const ug_options = useMemo(() => {
-    return ugList.map((param) => {
+  const options = useMemo(() => {
+    return allParamsForSite.map((param) => {
       return {
         value: param,
         label: param,
       };
     });
-  }, [ugList]);
-
-  const mg_options = useMemo(() => {
-    return mgList.map((param) => {
-      return {
-        value: param,
-        label: param,
-      };
-    });
-  }, [mgList]);
+  }, [allParamsForSite]);
 
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -94,18 +85,18 @@ export function DialogCard({ siteName }: { siteName: Site }) {
           </DialogHeader>
 
           <MultiSelect
-            options={ug_options}
-            onValueChange={setSelectedugValues}
-            defaultValue={selectedugValues}
+            options={options}
+            onValueChange={setSelectedValues}
+            defaultValue={selectedValues}
             modalPopover={true}
             popoverClassName="z-[10000]"
           />
 
           {dialogOpen && (
             <BoxPlotSingleSite
-              key={`${siteName.name}-${selectedugValues.join(",")}`}
+              key={`${siteName.name}-${selectedValues.join(",")}`}
               siteName={siteName.name}
-              targetParam={selectedugValues}
+              targetParam={selectedValues}
               height={460}
             />
           )}
