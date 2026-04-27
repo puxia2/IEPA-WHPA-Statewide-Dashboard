@@ -33,6 +33,7 @@ import dayjs from "dayjs";
 import { TimeSeriesPlotDatestamp } from "@/plots/time-series-plot-datestamp";
 import { SearchBySites } from "./search-by-sites";
 import IntroMessage from "@/components/intro-message";
+import { EventData, Joyride, STATUS, Step } from "react-joyride";
 
 const { BaseLayer } = LayersControl;
 
@@ -92,6 +93,7 @@ interface Site {
 
 export default function MyMap({ position, zoom }: MyMapProps) {
   const { rows, loading, error } = useCsvData<mapRow>("/EStL_AllDataJoin2.csv");
+  const [runTour, setRunTour] = useState(false);
   // multiple sites can be selected at once, array of station_id
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
   const [selectedParameterName, setSelectedParameterName] = useState<
@@ -300,12 +302,95 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     return { timeSeries: 320, riverLevel: 290 };
   }, [currentBreakpoint]);
 
+  const tourSteps: Step[] = useMemo(
+    () => [
+      {
+        target: ".quick-select-panel",
+        content:
+          "This is the quick select panel. Click on a button to quickly select and link sites to a chart.",
+        placement: "bottom",
+      },
+      {
+        target: ".multi-selection-panel",
+        content:
+          "This is the multi-selection panel. Use the dropdown menu to quickly select one or more sites and link them to a chart.",
+        placement: "bottom",
+      },
+      {
+        target: ".tour-map-panel",
+        content:
+          "This is the map panel. Click on a site to quickly select and link it to a chart.",
+        placement: "bottom",
+      },
+      {
+        target: ".tour-map-panel .react-resizable-handle-se",
+        content: "Drag this corner to resize the panel.",
+        placement: "bottom",
+      },
+      {
+        target: ".tour-move-handle",
+        content: "Drag this handle to move the panel.",
+        placement: "left",
+      },
+      {
+        target: ".tour-time-series-panel",
+        content:
+          "This is a time series graph, which shows the historical changes of the selected site and parameters.",
+        placement: "left",
+      },
+      {
+        target: ".tour-river-level-panel",
+        content:
+          "This is a river water level map, which is linked to the time series data within the same time range.",
+        placement: "left",
+      },
+    ],
+    [],
+  );
+
+  const handleJoyrideEvent = useCallback((data: EventData) => {
+    const { status } = data;
+    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+      setRunTour(false);
+    }
+  }, []);
+
   return (
     <div className="w-full min-h-screen p-1">
+      <Joyride
+        run={runTour}
+        steps={tourSteps}
+        continuous
+        scrollToFirstStep
+        onEvent={handleJoyrideEvent}
+        locale={{
+          back: "Previous",
+          close: "Close",
+          last: "Last",
+          next: "Next",
+          skip: "Skip",
+        }}
+        options={{
+          zIndex: 9999,
+          buttons: ["back", "close", "primary", "skip"],
+          showProgress: true,
+          skipScroll: true,
+          skipBeacon: true,
+        }}
+      />
       <IntroMessage />
-      <Button onClick={() => setLayouts(defaultLayout)} className="mb-4">
-        Default Layout
-      </Button>
+      <div className="mb-4 flex gap-2">
+        <Button onClick={() => setLayouts(defaultLayout)}>
+          Default Layout
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setRunTour(true)}
+          className="bg-amber-600 text-white"
+        >
+          Start Tour
+        </Button>
+      </div>
       {/* Grid Layout Container */}
       <div ref={gridContainerRef} className="w-full">
         <Responsive
@@ -333,7 +418,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
             className="panel mb-4 bg-white rounded-lg shadow-sm border overflow-hidden"
           >
             {/* Quick select buttons */}
-            <div className="px-2 py-1 text-xs font-semibold border-b flex justify-center gap-4">
+            <div className="px-2 py-1 text-xs font-semibold border-b flex justify-center gap-4 quick-select-panel">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -378,7 +463,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
             </div>
 
             {/* Search by sites */}
-            <div className="p-2 panel-no-drag">
+            <div className="p-2 panel-no-drag multi-selection-panel">
               <SearchBySites
                 sites={sites}
                 selectedSiteIds={selectedSiteIds}
@@ -390,10 +475,10 @@ export default function MyMap({ position, zoom }: MyMapProps) {
           {/* Map Component */}
           <div
             key="map"
-            className="panel bg-white rounded-lg shadow-sm border overflow-hidden relative flex flex-col"
+            className="panel tour-map-panel bg-white rounded-lg shadow-sm border overflow-hidden relative flex flex-col"
             style={{ position: "relative" }}
           >
-            <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
+            <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b tour-move-handle">
               Map
             </div>
             <div
@@ -472,7 +557,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
           {/* Time Series Plot Component */}
           <div
             key="timeSeries"
-            className="panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
+            className="panel tour-time-series-panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
           >
             <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
               Time Series Plot
@@ -530,7 +615,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
           {/* River Level Plot Component */}
           <div
             key="riverLevel"
-            className="panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
+            className="panel tour-river-level-panel bg-white rounded-lg shadow-sm border overflow-hidden flex flex-col"
           >
             <div className="panel-drag-handle cursor-move bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-600 border-b">
               River Level Plot
