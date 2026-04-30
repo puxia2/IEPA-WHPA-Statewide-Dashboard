@@ -15,7 +15,7 @@ import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
 import { Feature, MultiPolygon } from "geojson";
 import { contours } from "d3-contour";
-import { interpolateTurbo, interpolateYlOrBr, interpolateInferno } from "d3";
+import { interpolateBlues, interpolateYlOrBr, interpolateViridis } from "d3";
 import { scaleSequential } from "d3-scale";
 import { useCsvData } from "@/components/csv-reader";
 import {
@@ -91,17 +91,17 @@ export default function ContourMap() {
   const [selectedParam, setSelectedParam] = useState<string>("");
   const [scaleMode, setScaleMode] = useState<"linear" | "log">("linear");
   const [colorbarType, setColorbarType] = useState<
-    "turbo" | "ylOrBr" | "inferno"
-  >("ylOrBr");
+    "blues" | "ylOrBr" | "viridis"
+  >("blues");
 
   const colorScaleFunction = useMemo(() => {
     switch (colorbarType) {
-      case "turbo":
-        return interpolateTurbo;
+      case "blues":
+        return interpolateBlues;
       case "ylOrBr":
         return interpolateYlOrBr;
-      case "inferno":
-        return interpolateInferno;
+      case "viridis":
+        return interpolateViridis;
     }
   }, [colorbarType]);
 
@@ -528,9 +528,9 @@ export default function ContourMap() {
               <SelectGroup>
                 <SelectLabel>Colorbar Type</SelectLabel>
 
+                <SelectItem value="blues">Blues</SelectItem>
                 <SelectItem value="ylOrBr">YlOrBr</SelectItem>
-                <SelectItem value="turbo">Turbo</SelectItem>
-                <SelectItem value="inferno">Inferno</SelectItem>
+                <SelectItem value="viridis">Viridis</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
