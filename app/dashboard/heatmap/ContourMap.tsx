@@ -45,6 +45,7 @@ interface CsvRow {
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
+// this function is used to calculate the quantile of a sorted array
 const quantileSorted = (sorted: number[], q: number) => {
   if (sorted.length === 0) return NaN;
   const qq = Math.min(1, Math.max(0, q));
@@ -56,6 +57,7 @@ const quantileSorted = (sorted: number[], q: number) => {
   return sorted[lo] * (1 - t) + sorted[hi] * t;
 };
 
+// if x is between lo and hi, return x, otherwise return the closer bound
 const clamp = (x: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, x));
 
@@ -554,6 +556,37 @@ export default function ContourMap() {
           {error && (
             <div className="text-xs mt-2 text-red-600">Error: {error}</div>
           )}
+
+          <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 leading-relaxed">
+            <p>
+              The contours presented here are raw interpolations from data
+              reported/recorded in the Illinois State Water Survey (ISWS) water
+              quality database. This tool is meant to help researchers explore
+              available groundwater quality data, learn where data gaps are
+              present, and gain a greater understanding of the breadth and
+              depth of data recorded in the ISWS database.
+            </p>
+            <p className="mt-2">
+              <span className="font-semibold">Disclaimer:</span> These plots
+              are NOT meant for policy- or management-related decisions. They
+              are formulated from the raw data of the dashboard without QA/QC
+              procedures.
+            </p>
+            <p className="mt-2">
+              The contour data presented in the associated map was interpolated
+              using the Inverse Distance Weighting method. This method is
+              described{" "}
+              <a
+                href="https://en.wikipedia.org/wiki/Inverse_distance_weighting"
+                target="_blank"
+                rel="noreferrer"
+                className="underline text-amber-900 hover:text-amber-700"
+              >
+                here
+              </a>
+              .
+            </p>
+          </div>
         </div>
       </div>
     </div>

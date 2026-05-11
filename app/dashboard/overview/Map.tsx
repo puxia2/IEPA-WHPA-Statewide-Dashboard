@@ -33,7 +33,14 @@ import dayjs from "dayjs";
 import { TimeSeriesPlotDatestamp } from "@/plots/time-series-plot-datestamp";
 import { SearchBySites } from "./search-by-sites";
 import IntroMessage from "@/components/intro-message";
-import { EventData, Joyride, STATUS, Step } from "react-joyride";
+import {
+  ACTIONS,
+  EventData,
+  EVENTS,
+  Joyride,
+  STATUS,
+  Step,
+} from "react-joyride";
 
 const { BaseLayer } = LayersControl;
 
@@ -94,6 +101,7 @@ interface Site {
 export default function MyMap({ position, zoom }: MyMapProps) {
   const { rows, loading, error } = useCsvData<mapRow>("/EStL_AllDataJoin2.csv");
   const [runTour, setRunTour] = useState(false);
+  const [tourStepIndex, setTourStepIndex] = useState(0);
   // multiple sites can be selected at once, array of station_id
   const [selectedSiteIds, setSelectedSiteIds] = useState<number[]>([]);
   const [selectedParameterName, setSelectedParameterName] = useState<
@@ -307,7 +315,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
       {
         target: ".quick-select-panel",
         content:
-          "This is the quick select panel. Click on a button to quickly select and link sites to a chart.",
+          "This is the quick select panel. Click on a button to quickly select and link sites to a chart. \n For this tour, we'll automatically select all IDOT sites (D) and Chlorobenzene as the parameter.",
         placement: "bottom",
       },
       {
@@ -339,6 +347,12 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         placement: "left",
       },
       {
+        target: ".tour-parameter-dropdown",
+        content:
+          "Use this dropdown to select a parameter for the currently selected sites.",
+        placement: "left",
+      },
+      {
         target: ".tour-river-level-panel",
         content:
           "This is a river water level map, which is linked to the time series data within the same time range.",
@@ -348,18 +362,39 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     [],
   );
 
-  const handleJoyrideEvent = useCallback((data: EventData) => {
-    const { status } = data;
-    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-      setRunTour(false);
-    }
-  }, []);
+  const selectAllIDOTSitesD = useCallback(() => {
+    setSelectedSiteIds([56, 58, 60, 96, 556, 559]);
+    setSelectedParameterName("Chlorobenzene");
+  }, [setSelectedSiteIds, setSelectedParameterName]);
+
+  const handleJoyrideEvent = useCallback(
+    (data: EventData) => {
+      const { action, index, status, type } = data;
+
+      if (type === EVENTS.STEP_BEFORE && index === 0) {
+        selectAllIDOTSitesD();
+      }
+
+      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+        setRunTour(false);
+        setTourStepIndex(0);
+        return;
+      }
+
+      if (type === EVENTS.STEP_AFTER) {
+        const nextIndex = index + (action === ACTIONS.PREV ? -1 : 1);
+        setTourStepIndex(nextIndex);
+      }
+    },
+    [selectAllIDOTSitesD],
+  );
 
   return (
     <div className="w-full min-h-screen p-1">
       <Joyride
         run={runTour}
         steps={tourSteps}
+        stepIndex={tourStepIndex}
         continuous
         scrollToFirstStep
         onEvent={handleJoyrideEvent}
@@ -385,7 +420,10 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         </Button>
         <Button
           variant="outline"
-          onClick={() => setRunTour(true)}
+          onClick={() => {
+            setTourStepIndex(0);
+            setRunTour(true);
+          }}
           className="bg-amber-600 text-white"
         >
           Start Tour
@@ -421,9 +459,9 @@ export default function MyMap({ position, zoom }: MyMapProps) {
             <div className="px-2 py-1 text-xs font-semibold border-b flex justify-center gap-4 quick-select-panel">
               <Button
                 variant="outline"
+                className="tour-select-idot-btn active:bg-amber-600 active:text-white"
                 onClick={() => {
-                  setSelectedSiteIds([56, 58, 60, 96, 556, 559]);
-                  setSelectedParameterName("Chlorobenzene");
+                  selectAllIDOTSitesD();
                 }}
               >
                 Select all IDOT Sites (D)
@@ -581,7 +619,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
                   setSelectedParameterName(value ?? null)
                 }
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px] tour-parameter-dropdown">
                   <SelectValue placeholder="Select a parameter" />
                 </SelectTrigger>
                 <SelectContent>
