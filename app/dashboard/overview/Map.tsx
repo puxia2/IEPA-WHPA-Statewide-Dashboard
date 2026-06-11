@@ -315,7 +315,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
       {
         target: ".quick-select-panel",
         content:
-          "This is the quick select panel. Click on a button to quickly select and link sites to a chart. \n For this tour, we'll automatically select all IDOT sites (D) and Chlorobenzene as the parameter.",
+          "This panel allows you to filter sites based on shared attributes. Click on a button to quickly select and view sites’ data. When selected, the time series chart will populate and map will be updated based on your selection. \n For this tour, we’ll automatically select all deep IDOT wells—'Select all IDOT Sites (D)'—and chlorobenzene as the parameter.",
         placement: "bottom",
       },
       {
@@ -364,6 +364,11 @@ export default function MyMap({ position, zoom }: MyMapProps) {
 
   const selectAllIDOTSitesD = useCallback(() => {
     setSelectedSiteIds([56, 58, 60, 96, 556, 559]);
+    setSelectedParameterName("Chlorobenzene");
+  }, [setSelectedSiteIds, setSelectedParameterName]);
+
+  const selectAllIDOTSitesM = useCallback(() => {
+    setSelectedSiteIds([57, 59, 61, 97, 557, 560]);
     setSelectedParameterName("Chlorobenzene");
   }, [setSelectedSiteIds, setSelectedParameterName]);
 
@@ -459,12 +464,22 @@ export default function MyMap({ position, zoom }: MyMapProps) {
             <div className="px-2 py-1 text-xs font-semibold border-b flex justify-center gap-4 quick-select-panel">
               <Button
                 variant="outline"
-                className="tour-select-idot-btn active:bg-amber-600 active:text-white"
+                className="tour-select-idot-btn"
                 onClick={() => {
                   selectAllIDOTSitesD();
                 }}
               >
                 Select all IDOT Sites (D)
+              </Button>
+
+              <Button
+                variant="outline"
+                className="tour-select-idot-btn"
+                onClick={() => {
+                  selectAllIDOTSitesM();
+                }}
+              >
+                Select all IDOT Sites (M)
               </Button>
 
               <Button

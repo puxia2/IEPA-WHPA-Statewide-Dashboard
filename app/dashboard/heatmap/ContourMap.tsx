@@ -37,7 +37,6 @@ interface CsvRow {
   Long: number;
   ParamName2: string;
   yr: number;
-  bi_yr: number;
   avg_result_value_ugL: number;
   cnt?: number;
 }
@@ -63,7 +62,7 @@ const clamp = (x: number, lo: number, hi: number) =>
 
 export default function ContourMap() {
   const { rows, loading, error } = useCsvData<CsvRow>(
-    "/EStL_AllDataJoin_biannual.csv",
+    "/EStL_AllDataJoin_year.csv",
   );
 
   const years = useMemo(() => {
@@ -112,65 +111,27 @@ export default function ContourMap() {
       ? selectedParam
       : (parameterNames[0] ?? "");
 
-  // Aggregate biannual rows per station: weighted mean by cnt
-  // (avg_result_value_ugL * cnt summed / sum(cnt)), same idea as (5*4+3.75*6)/10.
   const filteredPoints = useMemo(() => {
     if (!activeParam || !Number.isFinite(activeYear)) return [];
 
-    const stationMap = new Map<
-      number,
-      {
-        stationId: number;
-        name: string;
-        lat: number;
-        lng: number;
-        weightedSum: number;
-        weightTotal: number;
-        periodCount: number;
-      }
-    >();
-    for (const row of rows) {
-      if (row.yr !== activeYear) continue;
-      if (String(row.ParamName2 ?? "").trim() !== activeParam) continue;
-      if (
-        !isFiniteNumber(row.Station_ID) ||
-        !isFiniteNumber(row.Lat) ||
-        !isFiniteNumber(row.Long) ||
-        !isFiniteNumber(row.avg_result_value_ugL)
-      ) {
-        continue;
-      }
-      const cntRaw = row.cnt;
-      const weight = isFiniteNumber(cntRaw) && cntRaw > 0 ? cntRaw : 1;
-
-      const current = stationMap.get(row.Station_ID);
-      if (!current) {
-        stationMap.set(row.Station_ID, {
-          stationId: row.Station_ID,
-          name: String(row.Name ?? `Station ${row.Station_ID}`),
-          lat: row.Lat,
-          lng: row.Long,
-          weightedSum: row.avg_result_value_ugL * weight,
-          weightTotal: weight,
-          periodCount: 1,
-        });
-      } else {
-        current.weightedSum += row.avg_result_value_ugL * weight;
-        current.weightTotal += weight;
-        current.periodCount += 1;
-      }
-    }
-
-    return Array.from(stationMap.values())
-      .filter((s) => s.weightTotal > 0)
-      .map((s) => ({
-        stationId: s.stationId,
-        name: s.name,
-        lat: s.lat,
-        lng: s.lng,
-        value: s.weightedSum / s.weightTotal,
-        totalCnt: s.weightTotal,
-        periodCount: s.periodCount,
+    return rows
+      .filter((row) => {
+        if (row.yr !== activeYear) return false;
+        if (String(row.ParamName2 ?? "").trim() !== activeParam) return false;
+        return (
+          isFiniteNumber(row.Station_ID) &&
+          isFiniteNumber(row.Lat) &&
+          isFiniteNumber(row.Long) &&
+          isFiniteNumber(row.avg_result_value_ugL)
+        );
+      })
+      .map((row) => ({
+        stationId: row.Station_ID,
+        name: String(row.Name ?? `Station ${row.Station_ID}`),
+        lat: row.Lat,
+        lng: row.Long,
+        value: row.avg_result_value_ugL,
+        cnt: isFiniteNumber(row.cnt) ? row.cnt : undefined,
       }));
   }, [rows, activeParam, activeYear]);
 
@@ -441,10 +402,7 @@ export default function ContourMap() {
                     <div>
                       {activeParam}: {p.value.toFixed(2)} ug/L
                     </div>
-                    <div>
-                      Semi-annual rows: {p.periodCount} (sum of cnt:{" "}
-                      {p.totalCnt})
-                    </div>
+                    {p.cnt !== undefined && <div>Sample count: {p.cnt}</div>}
                   </div>
                 </Popup>
               </Marker>
@@ -515,10 +473,8 @@ export default function ContourMap() {
             </SelectContent>
           </Select>
           <div className="text-xs text-muted-foreground mt-2">
-            In current Year={Number.isFinite(activeYear) ? activeYear : "-"}
-            {", "}
-            the weighted average of multiple semi-annual rows at the same site
-            is calculated as: Σ(avg×cnt)/Σ(cnt).
+            Values are yearly averages for Year=
+            {Number.isFinite(activeYear) ? activeYear : "-"}.
           </div>
 
           <div className="text-sm font-semibold mb-2 mt-3">Colorbar Type</div>
@@ -563,13 +519,13 @@ export default function ContourMap() {
               reported/recorded in the Illinois State Water Survey (ISWS) water
               quality database. This tool is meant to help researchers explore
               available groundwater quality data, learn where data gaps are
-              present, and gain a greater understanding of the breadth and
-              depth of data recorded in the ISWS database.
+              present, and gain a greater understanding of the breadth and depth
+              of data recorded in the ISWS database.
             </p>
             <p className="mt-2">
-              <span className="font-semibold">Disclaimer:</span> These plots
-              are NOT meant for policy- or management-related decisions. They
-              are formulated from the raw data of the dashboard without QA/QC
+              <span className="font-semibold">Disclaimer:</span> These plots are
+              NOT meant for policy- or management-related decisions. They are
+              formulated from the raw data of the dashboard without QA/QC
               procedures.
             </p>
             <p className="mt-2">
