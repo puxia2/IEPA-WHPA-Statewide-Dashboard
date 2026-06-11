@@ -35,18 +35,32 @@ export default function IntroMessage() {
               different ways to view the data. For example, the “Overview” tab
               displays a map of sampling locations paired with two time series
               plots, one of the selected site and contaminant time-series and
-              the other of the nearby Mississippi River gage. This view should
-              promote analysis of contaminant trends through time compared
-              against the river’s physical dynamics.
+              the other of the nearby Mississippi River gage. Mississippi River
+              gage height (ft) comes from the{" "}
+              <a
+                href="https://waterdata.usgs.gov/monitoring-location/USGS-07010000/#dataTypeId=continuous-00065-0&period=P7D&showFieldMeasurements=true"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:text-blue-700"
+              >
+                USGS-0701000 gaging station (Mississippi River at St. Louis, MO)
+              </a>
+              . This view should promote analysis of contaminant trends through
+              time compared against the river’s physical dynamics.
             </p>
             <p className="text-lg">
-              NOTE: Unless otherwise specified, all concentration data is
-              presented in parts per billion (ppb).{" "}
+              The second tab labeled “Heat Map” calculates and maps
+              concentration contours for different contaminants over a given
+              period.
             </p>
-            <p className="text-lg">…</p>
             <p className="text-lg">
+              <strong>NOTE:</strong> Unless otherwise specified, all
+              concentration data is presented in parts per billion (ppb).{" "}
+            </p>
+            {/* <p className="text-lg">…</p> */}
+            {/* <p className="text-lg">
               This dashboard is currently under development.
-            </p>
+            </p> */}
           </div>
         </DialogDescription>
         <Button onClick={() => setOpen(false)}>Start</Button>
