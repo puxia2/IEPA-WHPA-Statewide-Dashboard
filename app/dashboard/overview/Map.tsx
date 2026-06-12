@@ -314,8 +314,21 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     () => [
       {
         target: ".quick-select-panel",
-        content:
-          "This panel allows you to filter sites based on shared attributes. Click on a button to quickly select and view sites’ data. When selected, the time series chart will populate and map will be updated based on your selection. \n For this tour, we’ll automatically select all deep IDOT wells—'Select all IDOT Sites (D)'—and chlorobenzene as the parameter.",
+        content: (
+          <div>
+            <p>
+              This panel allows you to filter sites based on shared attributes.
+              Click on a button to quickly select and view sites’ data. When
+              selected, the time series chart will populate and map will be
+              updated based on your selection.
+            </p>
+            <p>
+              For this tour, we’ll automatically select all deep IDOT wells —{" "}
+              <strong>'Select all IDOT Sites (D)&apos;</strong>—and
+              chlorobenzene as the parameter.
+            </p>
+          </div>
+        ),
         placement: "bottom",
       },
       {
@@ -369,6 +382,11 @@ export default function MyMap({ position, zoom }: MyMapProps) {
 
   const selectAllIDOTSitesM = useCallback(() => {
     setSelectedSiteIds([57, 59, 61, 97, 557, 560]);
+    setSelectedParameterName("Chlorobenzene");
+  }, [setSelectedSiteIds, setSelectedParameterName]);
+
+  const selectAllIDOTSitesS = useCallback(() => {
+    setSelectedSiteIds([558, 561]);
     setSelectedParameterName("Chlorobenzene");
   }, [setSelectedSiteIds, setSelectedParameterName]);
 
@@ -480,6 +498,16 @@ export default function MyMap({ position, zoom }: MyMapProps) {
                 }}
               >
                 Select all IDOT Sites (M)
+              </Button>
+
+              <Button
+                variant="outline"
+                className="tour-select-idot-btn"
+                onClick={() => {
+                  selectAllIDOTSitesS();
+                }}
+              >
+                Select all IDOT Sites (S)
               </Button>
 
               <Button
