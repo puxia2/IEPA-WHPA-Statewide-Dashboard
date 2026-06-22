@@ -318,14 +318,14 @@ export default function MyMap({ position, zoom }: MyMapProps) {
           <div>
             <p>
               This panel allows you to filter sites based on shared attributes.
-              Click on a button to quickly select and view sites&apos; data. When
-              selected, the time series chart will populate and the map will be
-              updated based on your selection.
+              Click on a button to quickly select and view sites&apos; data.
+              When selected, the time series chart will populate and the map
+              will be updated based on your selection.
             </p>
             <p>
               For this tour, we&apos;ll automatically select all deep IDOT wells
-              — <strong>Select all IDOT Sites (D)</strong> — and chlorobenzene as
-              the parameter.
+              — <strong>Select all IDOT Sites (D)</strong> — and chlorobenzene
+              as the parameter.
             </p>
           </div>
         ),
@@ -361,8 +361,8 @@ export default function MyMap({ position, zoom }: MyMapProps) {
               sampling sites.
             </p>
             <p>
-              Click one or more sites on the map to quickly view time series data
-              for that selection.
+              Click one or more sites on the map to quickly view time series
+              data for that selection.
             </p>
           </div>
         ),
@@ -397,13 +397,13 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         content: (
           <div>
             <p>
-              This time series graph shows how water quality concentrations change
-              over time for the site(s) selected on the map.
+              This time series graph shows how water quality concentrations
+              change over time for the site(s) selected on the map.
             </p>
             <p>
-              Choose a constituent/parameter from the dropdown in the upper right
-              corner of the panel. Unless otherwise noted, concentrations are
-              shown in <strong>parts per billion (ppb)</strong>.
+              Choose a constituent/parameter from the dropdown in the upper
+              right corner of the panel. Unless otherwise noted, concentrations
+              are shown in <strong>parts per billion (ppb)</strong>.
             </p>
           </div>
         ),
@@ -414,8 +414,9 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         content: (
           <div>
             <p>
-              Use this dropdown to select a parameter for the currently selected
-              sites.
+              For the selected sites, use this dropdown menu to select a shared
+              water quality parameter to examine each site&apos;s sampling time
+              series for this constituent.
             </p>
           </div>
         ),
@@ -427,15 +428,16 @@ export default function MyMap({ position, zoom }: MyMapProps) {
           <div>
             <p>
               This panel shows Mississippi River gage height (ft) from the{" "}
-              <strong>USGS-07010000</strong> gaging station (Mississippi River at
-              St. Louis, MO).
+              <strong>USGS-07010000</strong> gaging station (Mississippi River
+              at St. Louis, MO).
             </p>
             <p>
               The time series shifts to match the date range available for the
               selected sites and parameters.
             </p>
             <p>
-              Use the slider beneath the plot to adjust the displayed date range.
+              Use the slider beneath the plot to adjust the displayed date
+              range.
             </p>
           </div>
         ),
