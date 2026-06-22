@@ -318,14 +318,14 @@ export default function MyMap({ position, zoom }: MyMapProps) {
           <div>
             <p>
               This panel allows you to filter sites based on shared attributes.
-              Click on a button to quickly select and view sites’ data. When
-              selected, the time series chart will populate and map will be
+              Click on a button to quickly select and view sites&apos; data. When
+              selected, the time series chart will populate and the map will be
               updated based on your selection.
             </p>
             <p>
-              For this tour, we’ll automatically select all deep IDOT wells —{" "}
-              <strong>'Select all IDOT Sites (D)&apos;</strong>—and
-              chlorobenzene as the parameter.
+              For this tour, we&apos;ll automatically select all deep IDOT wells
+              — <strong>Select all IDOT Sites (D)</strong> — and chlorobenzene as
+              the parameter.
             </p>
           </div>
         ),
@@ -333,42 +333,112 @@ export default function MyMap({ position, zoom }: MyMapProps) {
       },
       {
         target: ".multi-selection-panel",
-        content:
-          "This is the multi-selection panel. Use the dropdown menu to quickly select one or more sites and link them to a chart.",
+        content: (
+          <div>
+            <p>
+              If you want to select sites that are not grouped in the quick
+              selections above, use this dropdown to choose one or more sites
+              when you do not know their precise location on the map.
+            </p>
+            <p>
+              Once a site (or sites) is selected, the time series chart will
+              populate and the map will update based on your selection.
+            </p>
+            <p>
+              For this tour, we have selected:{" "}
+              <strong>PM1D, PM2D, PM3D, PM4D, PM5D, and PM6D</strong> (IDNR-16).
+            </p>
+          </div>
+        ),
         placement: "bottom",
       },
       {
         target: ".tour-map-panel",
-        content:
-          "This is the map panel. Click on a site to quickly select and link it to a chart.",
+        content: (
+          <div>
+            <p>
+              Scroll, zoom, and click to learn more about the region and
+              sampling sites.
+            </p>
+            <p>
+              Click one or more sites on the map to quickly view time series data
+              for that selection.
+            </p>
+          </div>
+        ),
         placement: "bottom",
       },
       {
         target: ".tour-map-panel .react-resizable-handle-se",
-        content: "Drag this corner to resize the panel.",
+        content: (
+          <div>
+            <p>
+              To view the map or time-series panels at a different size, click
+              and drag gray corners like this one to resize the panel.
+            </p>
+          </div>
+        ),
         placement: "bottom",
       },
       {
         target: ".tour-move-handle",
-        content: "Drag this handle to move the panel.",
+        content: (
+          <div>
+            <p>
+              To reorganize the panel layout, click and drag the gray bar at the
+              top of each panel to move it to a new location.
+            </p>
+          </div>
+        ),
         placement: "left",
       },
       {
         target: ".tour-time-series-panel",
-        content:
-          "This is a time series graph, which shows the historical changes of the selected site and parameters.",
+        content: (
+          <div>
+            <p>
+              This time series graph shows how water quality concentrations change
+              over time for the site(s) selected on the map.
+            </p>
+            <p>
+              Choose a constituent/parameter from the dropdown in the upper right
+              corner of the panel. Unless otherwise noted, concentrations are
+              shown in <strong>parts per billion (ppb)</strong>.
+            </p>
+          </div>
+        ),
         placement: "left",
       },
       {
         target: ".tour-parameter-dropdown",
-        content:
-          "Use this dropdown to select a parameter for the currently selected sites.",
+        content: (
+          <div>
+            <p>
+              Use this dropdown to select a parameter for the currently selected
+              sites.
+            </p>
+          </div>
+        ),
         placement: "left",
       },
       {
         target: ".tour-river-level-panel",
-        content:
-          "This is a river water level map, which is linked to the time series data within the same time range.",
+        content: (
+          <div>
+            <p>
+              This panel shows Mississippi River gage height (ft) from the{" "}
+              <strong>USGS-07010000</strong> gaging station (Mississippi River at
+              St. Louis, MO).
+            </p>
+            <p>
+              The time series shifts to match the date range available for the
+              selected sites and parameters.
+            </p>
+            <p>
+              Use the slider beneath the plot to adjust the displayed date range.
+            </p>
+          </div>
+        ),
         placement: "left",
       },
     ],

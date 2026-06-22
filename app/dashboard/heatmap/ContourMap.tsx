@@ -90,7 +90,7 @@ export default function ContourMap() {
   }, [rows, activeYear]);
 
   const [selectedParam, setSelectedParam] = useState<string>("");
-  const [scaleMode, setScaleMode] = useState<"linear" | "log">("linear");
+  const [scaleMode, setScaleMode] = useState<"linear" | "log">("log");
   const [colorbarType, setColorbarType] = useState<
     "blues" | "ylOrBr" | "viridis"
   >("blues");
@@ -459,7 +459,7 @@ export default function ContourMap() {
           <div className="text-sm font-semibold mt-3 mb-2">Scale</div>
           <Select
             value={scaleMode}
-            onValueChange={(value) => setScaleMode(value as "linear" | "log")}
+            onValueChange={(value) => setScaleMode(value as "log" | "linear")}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select scale" />
@@ -467,8 +467,8 @@ export default function ContourMap() {
             <SelectContent className="z-[2000]">
               <SelectGroup>
                 <SelectLabel>Scale</SelectLabel>
-                <SelectItem value="linear">Linear</SelectItem>
                 <SelectItem value="log">Log</SelectItem>
+                <SelectItem value="linear">Linear</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
