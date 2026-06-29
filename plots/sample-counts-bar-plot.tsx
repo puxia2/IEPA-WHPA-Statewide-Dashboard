@@ -1,6 +1,7 @@
 "use client";
 
 import { useCsvData } from "@/components/csv-reader";
+import { coerceNumber } from "@/lib/date";
 import { useMemo } from "react";
 import {
   Bar,
@@ -17,14 +18,12 @@ type SampleCountsBarPlotProps = {
   siteName: string;
   topN?: number; // top N parameters to display
   height?: number; // height of the plot
-  unit?: "(ug/L)" | "(mg/L)" | string; // only filter parameters with this unit
 };
 
 interface CsvRow {
   Name: string;
   ParamName2?: string;
-  ParamName?: string;
-  Parameter_Unit?: string;
+  Result_Value_ugL?: number | string;
   [k: string]: unknown;
 }
 
@@ -39,7 +38,6 @@ export default function SampleCountsBarPlot({
   siteName,
   topN = 10,
   height = 300,
-  unit = "(ug/L)",
 }: SampleCountsBarPlotProps) {
   const { rows, loading, error } = useCsvData<CsvRow>(csvPath);
 
@@ -53,15 +51,10 @@ export default function SampleCountsBarPlot({
       const rowSite = normalizeText(row.Name);
       if (!rowSite || rowSite !== siteNorm) continue;
 
-      const paramNorm = normalizeText(row.ParamName2 ?? row.ParamName);
+      const paramNorm = normalizeText(row.ParamName2);
       if (!paramNorm) continue;
 
-      if (unit) {
-        const unitText = unit.replace(/[()]/g, "").trim().toLowerCase();
-        const paramHasUnit = paramNorm.toLowerCase().includes(unit.toLowerCase());
-        const rowUnit = normalizeText(row.Parameter_Unit).toLowerCase();
-        if (!paramHasUnit && rowUnit !== unitText) continue;
-      }
+      if (coerceNumber(row.Result_Value_ugL) === null) continue;
 
       counts.set(paramNorm, (counts.get(paramNorm) ?? 0) + 1);
     }
@@ -72,13 +65,13 @@ export default function SampleCountsBarPlot({
       .slice(0, topN);
 
     return out;
-  }, [rows, siteName, unit, topN]);
+  }, [rows, siteName, topN]);
 
   return (
     <div className="w-full">
       <div className="mb-2">
         <p className="text-sm text-muted-foreground">
-          Sample counts by parameter (top {topN}){unit && ` (unit: ${unit})`}
+          Top {topN} sample counts by parameter:
         </p>
       </div>
 

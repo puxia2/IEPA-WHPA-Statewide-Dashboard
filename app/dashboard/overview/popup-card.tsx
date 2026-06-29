@@ -62,7 +62,6 @@ export default function PopupCard({
               siteName={site.name}
               topN={5}
               height={200}
-              unit="(ug/L)"
             />
           </div>
           <div className="flex justify-center">

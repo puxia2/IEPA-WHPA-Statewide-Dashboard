@@ -60,7 +60,20 @@ const quantileSorted = (sorted: number[], q: number) => {
 const clamp = (x: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, x));
 
-export default function ContourMap() {
+const withAlpha = (color: string, alpha: number) => {
+  const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (match) {
+    return `rgba(${match[1]}, ${match[2]}, ${match[3]}, ${alpha})`;
+  }
+  return color;
+};
+
+type ContourMapProps = {
+  /** Fill opacity for contour layers and colorbar preview (0–1). */
+  defaultAlpha?: number;
+};
+
+export default function ContourMap({ defaultAlpha = 0.42 }: ContourMapProps) {
   const { rows, loading, error } = useCsvData<CsvRow>(
     "/EStL_AllDataJoin_year.csv",
   );
@@ -94,6 +107,7 @@ export default function ContourMap() {
   const [colorbarType, setColorbarType] = useState<
     "blues" | "ylOrBr" | "viridis"
   >("blues");
+  const [alpha, setAlpha] = useState(defaultAlpha);
 
   const colorScaleFunction = useMemo(() => {
     switch (colorbarType) {
@@ -334,9 +348,12 @@ export default function ContourMap() {
     () =>
       [0, 0.25, 0.5, 0.75, 1].map((t) => ({
         offset: `${t * 100}%`,
-        color: colorScale(minValue + t * (maxValue - minValue)),
+        color: withAlpha(
+          colorScale(minValue + t * (maxValue - minValue)),
+          alpha,
+        ),
       })),
-    [colorScale, minValue, maxValue],
+    [colorScale, minValue, maxValue, alpha],
   );
 
   return (
@@ -367,12 +384,12 @@ export default function ContourMap() {
             {/* Fill the full interpolation extent with the minimum color so low values are also visible. */}
             {contourBounds && (
               <Rectangle
-                key={`base-${activeYear}-${activeParam}-${scaleMode}`}
+                key={`base-${activeYear}-${activeParam}-${scaleMode}-${alpha}`}
                 bounds={contourBounds}
                 pathOptions={{
                   color: "transparent",
                   weight: 0,
-                  fillOpacity: 0.42,
+                  fillOpacity: alpha,
                   fillColor: colorScale(minValue),
                 }}
               />
@@ -380,12 +397,12 @@ export default function ContourMap() {
 
             {contourFeatures.map((feature, idx) => (
               <GeoJSON
-                key={`${activeYear}-${activeParam}-${scaleMode}-${idx}`}
+                key={`${activeYear}-${activeParam}-${scaleMode}-${alpha}-${idx}`}
                 data={feature}
                 style={() => ({
                   color: "transparent",
                   weight: 0,
-                  fillOpacity: 0.42,
+                  fillOpacity: alpha,
                   fillColor: colorScale(
                     Number(feature.properties?.value ?? valueRange[0]),
                   ),
@@ -495,6 +512,23 @@ export default function ContourMap() {
 
           <div className="mt-4">
             <div className="text-sm font-semibold mb-2">Colorbar</div>
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-muted-foreground">Opacity</span>
+                <span className="text-xs text-muted-foreground">
+                  {Math.round(alpha * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.01}
+                value={alpha}
+                onChange={(e) => setAlpha(Number(e.target.value))}
+                className="w-full accent-primary"
+              />
+            </div>
             <div
               className="h-4 w-full rounded border"
               style={{
