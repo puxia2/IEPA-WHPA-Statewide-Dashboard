@@ -44,3 +44,10 @@ next-env.d.ts
 .idea
 ./public/output*
 *.pyc
+
+# Python backend
+backend/.venv/
+backend/venv/
+__pycache__/
+*.py[cod]
+.Python
