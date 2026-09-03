@@ -13,7 +13,7 @@ import {
   type LegendPayload,
 } from "recharts";
 import { TimeSeriesPlotProps } from "@/types/chart";
-import { useCsvData } from "@/components/csv-reader";
+import { useParquetData } from "@/components/parquet-reader";
 import { toMDY, mdySortKey, coerceNumber } from "@/lib/date";
 
 const DEFAULT_COLORS = [
@@ -30,15 +30,27 @@ const DEFAULT_COLORS = [
 // const SITES = ["Mo Ave. Well 2", "Mo Ave. Well 3", "Mo Ave. Well 4"];
 // type Site = "Mo Ave. Well 2" | "Mo Ave. Well 3" | "Mo Ave. Well 4";
 
-interface CsvRow {
+interface DataRow {
   ParamName2?: string;
   ParamName?: string;
   Name: string;
-  Start_Date: string; // for example: "10/1/2020 12:00:00 AM"
+  Start_Date: Date; // Parquet timestamp column, at UTC midnight
   Result_Value_ugL?: number | string; // Concentration in ug/L
   Result_Value?: number | string; // legacy fallback
   [k: string]: unknown; // there could be more columns, type is unknown
 }
+
+// Only the columns the plot reads. Parquet is columnar, so naming them keeps the
+// transfer to a fraction of the object. Columns absent from a given dataset are
+// ignored, which is what makes the ParamName2/ParamName fallback work.
+const COLUMNS = [
+  "ParamName2",
+  "ParamName",
+  "Name",
+  "Start_Date",
+  "Result_Value_ugL",
+  "Result_Value",
+];
 
 // interface Point {
 //   x: string; // mm/dd/yyyy in string format
@@ -55,7 +67,7 @@ type WidePoint = {
 export default function TimeSeriesPlot({
   targetParam,
   sites,
-  csvPath = "/EStL_AllDataJoin2.csv",
+  dataset = "EStL_AllDataJoin2",
   colors = {},
   height = 440,
   compact = false,
@@ -65,8 +77,10 @@ export default function TimeSeriesPlot({
   // const [error, setError] = useState<string | null>(null);
   const [hidden, setHidden] = useState<Record<string, boolean>>({}); // site name -> hidden status
 
-  // read CSV
-  const { rows, loading, error } = useCsvData<CsvRow>(csvPath);
+  // read the published Parquet dataset through the /api/data proxy
+  const { rows, loading, error } = useParquetData<DataRow>(dataset, {
+    columns: COLUMNS,
+  });
 
   const data: WidePoint[] = useMemo(() => {
     // date -> site -> values[]
@@ -79,7 +93,7 @@ export default function TimeSeriesPlot({
       if (paramName !== targetParam) continue;
       if (!targetSet.has(r.Name)) continue;
 
-      const mdy = toMDY(String(r.Start_Date ?? ""));
+      const mdy = toMDY(r.Start_Date);
       if (!mdy) continue;
 
       const rawValue = (r.Result_Value_ugL ?? r.Result_Value) ?? (null as unknown);

@@ -13,7 +13,7 @@ import {
   type LegendPayload,
 } from "recharts";
 import dayjs from "dayjs";
-import { useCsvData } from "@/components/csv-reader";
+import { useParquetData } from "@/components/parquet-reader";
 import { TimeSeriesPlotProps } from "@/types/chart";
 import { coerceNumber, mdySortKey, toMDY } from "@/lib/date";
 
@@ -33,17 +33,29 @@ const DEFAULT_COLORS = [
   "#16a34a", // green-600
 ];
 
+// Only the columns this plot reads; see the note in time-series-plot.tsx.
+const COLUMNS = [
+  "ParamName2",
+  "ParamName",
+  "Name",
+  "Start_Date",
+  "Result_Value_ugL",
+  "Result_Value",
+];
+
 export function TimeSeriesPlotDatestamp({
   targetParam,
   sites,
-  csvPath = "/EStL_AllDataJoin2.csv",
+  dataset = "EStL_AllDataJoin2",
   colors = {},
   height = 440,
   compact = false,
   xDomain,
   onInitialDomain,
 }: TimeSeriesPlotProps) {
-  const { rows } = useCsvData<Record<string, unknown>>(csvPath);
+  const { rows } = useParquetData<Record<string, unknown>>(dataset, {
+    columns: COLUMNS,
+  });
 
   const data: WidePoint[] = useMemo(() => {
     const bucket = new Map<string, Map<string, number[]>>();
@@ -59,7 +71,7 @@ export function TimeSeriesPlotDatestamp({
       const paramName = normalize(r.ParamName2 ?? r.ParamName);
       if (!selectedParam || paramName !== selectedParam) continue;
 
-      const mdy = toMDY(String(r.Start_Date ?? ""));
+      const mdy = toMDY(r.Start_Date);
       if (!mdy) continue;
 
       const v = coerceNumber((r.Result_Value_ugL ?? r.Result_Value) as unknown);

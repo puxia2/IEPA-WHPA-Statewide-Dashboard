@@ -1,4 +1,4 @@
-import { useCsvData } from "@/components/csv-reader";
+import { useParquetData } from "@/components/parquet-reader";
 import { RiverLevelPlotProps } from "@/types/chart";
 import { useMemo } from "react";
 import {
@@ -14,11 +14,14 @@ import {
 import dayjs from "dayjs";
 import { coerceNumber, mdySortKey, toMDY } from "@/lib/date";
 
-interface RiverCsvRow {
-  Date: string; // for example: "10/1/2020 12:00:00 AM"
+interface RiverRow {
+  Date: Date; // Parquet timestamp column, at UTC midnight
   Value?: number | string; // Gage height (ft)
   [k: string]: unknown; // there could be more columns, type is unknown
 }
+
+// The gage series only needs the date and the value, not the agency/site columns.
+const COLUMNS = ["Date", "Value"];
 
 type RiverPoint = {
   dateLabel: string; // mm/dd/yyyy
@@ -28,18 +31,20 @@ type RiverPoint = {
 };
 
 export function RiverLevelPlot({
-  csvPath,
+  dataset = "dv",
   height = 220,
   xDomain,
   onDomainChange,
 }: RiverLevelPlotProps) {
-  const { rows, loading, error } = useCsvData<RiverCsvRow>(csvPath);
+  const { rows, loading, error } = useParquetData<RiverRow>(dataset, {
+    columns: COLUMNS,
+  });
 
   const data: RiverPoint[] = useMemo(() => {
     const bucket = new Map<string, number[]>();
 
     for (const r of rows) {
-      const mdy = toMDY(String(r.Date ?? ""));
+      const mdy = toMDY(r.Date);
       if (!mdy) continue;
 
       const v = coerceNumber(r.Value);

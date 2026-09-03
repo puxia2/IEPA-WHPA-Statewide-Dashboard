@@ -1,6 +1,6 @@
 "use client";
 
-import { useCsvData } from "@/components/csv-reader";
+import { useParquetData } from "@/components/parquet-reader";
 import { coerceNumber } from "@/lib/date";
 import { useMemo } from "react";
 import {
@@ -14,18 +14,21 @@ import {
 } from "recharts";
 
 type SampleCountsBarPlotProps = {
-  csvPath?: string;
+  dataset?: string; // published dataset name, e.g. "EStL_AllDataJoin2"
   siteName: string;
   topN?: number; // top N parameters to display
   height?: number; // height of the plot
 };
 
-interface CsvRow {
+interface DataRow {
   Name: string;
   ParamName2?: string;
   Result_Value_ugL?: number | string;
   [k: string]: unknown;
 }
+
+// Only the three columns the counts need — see the note in time-series-plot.tsx.
+const COLUMNS = ["Name", "ParamName2", "Result_Value_ugL"];
 
 function normalizeText(s: unknown) {
   return String(s ?? "")
@@ -34,12 +37,14 @@ function normalizeText(s: unknown) {
 }
 
 export default function SampleCountsBarPlot({
-  csvPath = "/EStL_AllDataJoin2.csv",
+  dataset = "EStL_AllDataJoin2",
   siteName,
   topN = 10,
   height = 300,
 }: SampleCountsBarPlotProps) {
-  const { rows, loading, error } = useCsvData<CsvRow>(csvPath);
+  const { rows, loading, error } = useParquetData<DataRow>(dataset, {
+    columns: COLUMNS,
+  });
 
   const data = useMemo(() => {
     const siteNorm = normalizeText(siteName);

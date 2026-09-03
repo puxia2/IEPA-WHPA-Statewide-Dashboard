@@ -1,8 +1,8 @@
 export type TimeSeriesPlotProps = {
   targetParam: string; // e.g. "Chlorobenzene (mg/L)"
   sites: readonly string[]; // e.g. ["Mo Ave. Well 2", "Mo Ave. Well 3", "Mo Ave. Well 4"]
-  // ?: optional property === csvPath: string | undefined
-  csvPath?: string; // e.g. "/EStL_AllDataJoin.csv"
+  // ?: optional property === dataset: string | undefined
+  dataset?: string; // published dataset name, e.g. "EStL_AllDataJoin2"
   colors?: Record<string, string>; // e.g. { "Mo Ave. Well 2": "#b45309", "Mo Ave. Well 3": "#0f766e", "Mo Ave. Well 4": "#7c3aed" }
   height?: number; // height of the plot, default is 440
   compact?: boolean; // whether to show the plot in compact mode, default is false
@@ -14,7 +14,7 @@ export type TimeSeriesPlotProps = {
 
 export type BoxPlotProps = {
   targetParam: string; // parameter name
-  csvPath?: string;
+  dataset?: string;
   height?: number; // height of the plot, default is 460
   margin?: { top: number; right: number; bottom: number; left: number };
   tickRotate?: number; // angle of the text on the x-axis, default is -30
@@ -26,7 +26,7 @@ export type BoxPlotProps = {
 export interface BoxPlotSingleSiteProps {
   siteName: string;
   targetParam: string[];
-  csvPath?: string;
+  dataset?: string;
   height?: number;
   margin?: { top: number; right: number; bottom: number; left: number };
   tickRotate?: number;
@@ -35,7 +35,7 @@ export interface BoxPlotSingleSiteProps {
 }
 
 export type RiverLevelPlotProps = {
-  csvPath: string;
+  dataset?: string; // published dataset name, e.g. "dv"
   height?: number;
   xDomain?: [number, number];
   onDomainChange?: (domain: [number, number]) => void; // when the user drags the brush, update the xDomain with [startTime, endTime]

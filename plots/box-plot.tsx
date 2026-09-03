@@ -1,24 +1,32 @@
 // File: components/box-plot.tsx
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import Papa from "papaparse";
+import React, { useEffect, useMemo, useRef } from "react";
 import * as d3 from "d3";
 import { BoxPlotProps } from "@/types/chart";
+import { useParquetData } from "@/components/parquet-reader";
 
-interface CsvRow {
+interface DataRow {
   ParamName2?: string;
   ParamName?: string;
   Name: string;
-  Start_Date: string;
   Result_Value_ugL?: number | string;
   Result_Value?: number | string;
   [k: string]: unknown;
 }
 
+// Only the columns the box stats need; see the note in time-series-plot.tsx.
+const COLUMNS = [
+  "ParamName2",
+  "ParamName",
+  "Name",
+  "Result_Value_ugL",
+  "Result_Value",
+];
+
 export default function BoxPlot({
   targetParam,
-  csvPath = "/EStL_AllDataJoin2.csv",
+  dataset = "EStL_AllDataJoin2",
   height = 460,
   margin = { top: 24, right: 20, bottom: 64, left: 64 },
   tickRotate = -30,
@@ -30,31 +38,10 @@ export default function BoxPlot({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
 
-  const [rows, setRows] = useState<CsvRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // read CSV
-  useEffect(() => {
-    setLoading(true);
-    Papa.parse<CsvRow>(csvPath, {
-      download: true,
-      header: true,
-      dynamicTyping: true,
-      skipEmptyLines: true,
-      complete: (res) => {
-        const data = (res.data || []).filter((row): row is CsvRow =>
-          Boolean(row)
-        );
-        setRows(data);
-        setLoading(false);
-      },
-      error: (err) => {
-        setError("Failed to load CSV: " + err.message);
-        setLoading(false);
-      },
-    });
-  }, [csvPath]);
+  // read the published Parquet dataset through the /api/data proxy
+  const { rows, loading, error } = useParquetData<DataRow>(dataset, {
+    columns: COLUMNS,
+  });
 
   function coerceNumber(x: unknown): number | null {
     if (x === null || x === undefined || x === "") return null;

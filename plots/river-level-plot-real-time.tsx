@@ -14,8 +14,8 @@ import {
 import dayjs from "dayjs";
 import { fetchUsgsRiverDailyDv, type RiverPoint } from "./usgs-water";
 
-type Props = RiverLevelPlotProps & {
-  csvPath?: string;
+// This variant reads the USGS service directly, so it takes no dataset name.
+type Props = Omit<RiverLevelPlotProps, "dataset"> & {
   site?: string;
   startDT?: string; // "YYYY-MM-DD"
   endDT?: string; // optional

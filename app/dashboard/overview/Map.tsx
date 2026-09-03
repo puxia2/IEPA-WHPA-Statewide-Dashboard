@@ -17,7 +17,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
-import { useCsvData } from "@/components/csv-reader";
+import { useParquetData } from "@/components/parquet-reader";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import MarkerClusterGroup from "react-leaflet-markercluster";
@@ -89,6 +89,21 @@ interface mapRow {
   [k: string]: unknown;
 }
 
+// The map only needs site identity and the parameter names, not the 24 columns
+// of the full dataset. Parquet is columnar, so naming them keeps the transfer
+// small; columns absent from a dataset are ignored, which is what makes the
+// ParamName2/ParamName fallback below work.
+const COLUMNS = [
+  "Lat",
+  "Long",
+  "Station_ID",
+  "Depth_Qual",
+  "Name",
+  "Organization_Name",
+  "ParamName2",
+  "ParamName",
+];
+
 interface Site {
   name: string;
   station_id: number;
@@ -99,7 +114,9 @@ interface Site {
 }
 
 export default function MyMap({ position, zoom }: MyMapProps) {
-  const { rows, loading, error } = useCsvData<mapRow>("/EStL_AllDataJoin2.csv");
+  const { rows, loading, error } = useParquetData<mapRow>("EStL_AllDataJoin2", {
+    columns: COLUMNS,
+  });
   const [runTour, setRunTour] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
   // multiple sites can be selected at once, array of station_id
@@ -779,7 +796,6 @@ export default function MyMap({ position, zoom }: MyMapProps) {
               onTouchStart={(e) => e.stopPropagation()}
             >
               <RiverLevelPlotRealTime
-                csvPath="/dv.csv"
                 site="07010000"
                 startDT="2000-01-02"
                 parameterCd="00065"

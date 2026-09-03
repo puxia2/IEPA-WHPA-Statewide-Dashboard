@@ -17,7 +17,7 @@ import { Feature, MultiPolygon } from "geojson";
 import { contours } from "d3-contour";
 import { interpolateBlues, interpolateYlOrBr, interpolateViridis } from "d3";
 import { scaleSequential } from "d3-scale";
-import { useCsvData } from "@/components/csv-reader";
+import { useParquetData } from "@/components/parquet-reader";
 import {
   Select,
   SelectContent,
@@ -30,7 +30,7 @@ import {
 
 const { BaseLayer } = LayersControl;
 
-interface CsvRow {
+interface DataRow {
   Station_ID: number;
   Name: string;
   Lat: number;
@@ -40,6 +40,10 @@ interface CsvRow {
   avg_result_value_ugL: number;
   cnt?: number;
 }
+
+// The yearly-average dataset is narrow and the contours use nearly all of it,
+// so this reads every column rather than naming them.
+const DATASET = "EStL_AllDataJoin_year";
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -74,9 +78,7 @@ type ContourMapProps = {
 };
 
 export default function ContourMap({ defaultAlpha = 0.42 }: ContourMapProps) {
-  const { rows, loading, error } = useCsvData<CsvRow>(
-    "/EStL_AllDataJoin_year.csv",
-  );
+  const { rows, loading, error } = useParquetData<DataRow>(DATASET);
 
   const years = useMemo(() => {
     const set = new Set<number>();
@@ -542,7 +544,7 @@ export default function ContourMap({ defaultAlpha = 0.42 }: ContourMapProps) {
               <span>{maxValueRaw.toFixed(2)} ug/L</span>
             </div>
           </div>
-          {loading && <div className="text-xs mt-2">Loading CSV...</div>}
+          {loading && <div className="text-xs mt-2">Loading data...</div>}
           {error && (
             <div className="text-xs mt-2 text-red-600">Error: {error}</div>
           )}

@@ -54,7 +54,6 @@ export default function Dashboard() {
               <TabsContent value="sulfate">
                 <BoxPlot
                   targetParam="Sulfate as SO4 (mg/l)"
-                  csvPath="/EStL_AllDataJoin.csv"
                   height={520}
                   color="#7c3aed" // violet-700
                 />

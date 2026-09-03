@@ -14,7 +14,6 @@ export default function RadioBoxplotWrapper() {
       />
       <BoxPlot
         targetParam="Total dissolved solids (mg/L )"
-        csvPath="/EStL_AllDataJoin.csv"
         height={520}
         color="#7c3aed"
         minCount={5}

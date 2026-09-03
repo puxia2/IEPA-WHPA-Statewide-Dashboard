@@ -13,19 +13,20 @@ import {
 } from "@/components/ui/dialog";
 import { MultiSelect } from "@/components/multi-select";
 import { useState, useMemo } from "react";
-import { useCsvData } from "@/components/csv-reader";
+import { useParquetData } from "@/components/parquet-reader";
 import BoxPlotSingleSite from "@/plots/box-plot-single-site";
 
-interface CsvRow {
+interface DataRow {
   ParamName2?: string;
   ParamName?: string;
   Name: string;
-  Start_Date: string; // 例如 "10/1/2020 12:00:00 AM"
-  Result_Value_ugL?: number | string; // Concentration in ug/L
-  Result_Value?: number | string; // legacy fallback
   [k: string]: unknown; // there could be more columns, type is unknown
 }
-const csvPath = "/EStL_AllDataJoin2.csv";
+
+const DATASET = "EStL_AllDataJoin2";
+
+// The dropdown only lists parameter names per site, so three columns are enough.
+const COLUMNS = ["Name", "ParamName2", "ParamName"];
 
 interface Site {
   name: string;
@@ -37,7 +38,9 @@ interface Site {
 }
 
 export function DialogCard({ siteName }: { siteName: Site }) {
-  const { rows, loading, error } = useCsvData<CsvRow>(csvPath);
+  const { rows, loading, error } = useParquetData<DataRow>(DATASET, {
+    columns: COLUMNS,
+  });
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
 
