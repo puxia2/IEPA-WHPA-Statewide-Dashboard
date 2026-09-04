@@ -18,7 +18,7 @@ export default function Map() {
   async function pingBackend() {
     setBackendTestResult("Pinging…");
     try {
-      const res = await fetch("http://localhost:8000/api/hello");
+      const res = await fetch("http://localhost:8000/api/test-db");
       const data = await res.json();
       setBackendTestResult(JSON.stringify(data));
     } catch (err) {

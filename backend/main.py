@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from database.database_accessor_sqlalchemy import dbqISWS
+
 app = FastAPI(
     title="ISWS WQ Dashboard API",
     description="Backend API for computation-heavy water quality operations",
@@ -62,3 +64,24 @@ def hello_post(body: HelloRequest):
         message=f"Hello, {body.name}!",
         received_at=datetime.now(timezone.utc).isoformat(),
     )
+
+
+@app.get("/api/test-db")
+def test_db():
+    db = dbqISWS(
+        Driver="SQL Server",
+        Server="datastorm",
+        Database="ESTL_DB",
+        Trusted_Connection="yes",
+        verbose=False,
+    )
+
+    try:
+        data = db.sql_query(
+            "SELECT TOP 10 * FROM dbo.TBL_Locations;",
+            returnbool=True,
+        )
+        return data.to_dict(orient="records")
+
+    finally:
+        db.close_connection()
