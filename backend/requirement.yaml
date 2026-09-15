@@ -1,0 +1,33 @@
+# Conda environment for the ISWS WQ Dashboard FastAPI backend.
+#
+# Create / update:
+#   conda env create -f backend/requirement.yaml
+#   conda env update -n estl-dashboard -f backend/requirement.yaml --prune
+#
+# Activate:
+#   conda activate estl-dashboard
+#
+# Then start the API:
+#   npm run backend:dev
+#   # or:  cd backend && uvicorn main:app --reload --host 127.0.0.1 --port 8000
+
+name: estl-dashboard
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pandas
+  - sqlalchemy>=2.0
+  - matplotlib
+  - pyodbc
+  - greenlet
+  - numpy
+  - pip
+  - pip:
+      - fastapi>=0.115.0
+      - "uvicorn[standard]>=0.32.0"
+      - pydantic>=2.0.0
+      - boto3
+      - pyarrow
+      - python-dotenv

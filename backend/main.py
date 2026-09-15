@@ -1,10 +1,32 @@
-from datetime import datetime, timezone
+from __future__ import annotations
 
-from fastapi import FastAPI
+from datetime import datetime, timezone
+from io import BytesIO
+from pathlib import Path
+import sys
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import pandas as pd
 
-from database.database_accessor_sqlalchemy import dbqISWS
+# Allow importing sibling package `modules/` from the repo root.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from modules.csv_to_parquet_s3 import make_s3_client  # noqa: E402
+from database.database_accessor_sqlalchemy import dbqISWS  # noqa: E402
+
+import os
+
+# Prefer .env values (loaded inside make_s3_client); fall back to publish defaults.
+s3_client = make_s3_client()
+print([b["Name"] for b in s3_client.list_buckets()["Buckets"]])  # print out all buckets
+
+
+DEFAULT_BUCKET = os.environ.get("S3_BUCKET", "ot-data-catalog")
+DEFAULT_PREFIX = os.environ.get("S3_PREFIX", "isws/wq").strip("/")
 
 app = FastAPI(
     title="ISWS WQ Dashboard API",
@@ -85,3 +107,27 @@ def test_db():
 
     finally:
         db.close_connection()
+
+
+def read_parquet_from_s3(file_name: str, columns: list[str] | None = None) -> pd.DataFrame:
+    key = f"{DEFAULT_PREFIX}/{file_name}.parquet"
+    response = s3_client.get_object(Bucket=DEFAULT_BUCKET, Key=key)
+    buffer = BytesIO(response["Body"].read())
+    return pd.read_parquet(buffer, columns=columns, engine="pyarrow")
+
+
+@app.get("/api/test-parquet")
+def test_parquet():
+    try:
+        df = read_parquet_from_s3(
+            "EStL_AllDataJoin2",
+            columns=["Station_ID", "Name", "Lat", "Long"],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+    return {
+        "rows": len(df),
+        "columns": df.columns.tolist(),
+        "preview": df.head(5).to_dict(orient="records"),
+    }
