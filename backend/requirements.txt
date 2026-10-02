@@ -6,3 +6,9 @@ sqlalchemy>=2.0.0
 greenlet>=3.0.0
 pyodbc
 matplotlib
+boto3
+pyarrow
+python-dotenv
+numpy
+scipy
+pykrige>=1.7

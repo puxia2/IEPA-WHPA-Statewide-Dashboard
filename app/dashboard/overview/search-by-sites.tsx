@@ -19,7 +19,7 @@ interface SearchBySitesProps {
 }
 
 export function SearchBySites({
-  sites,
+  sites, // array of unique sites, sites =[{name: string, station_id: number, lat: number, lng: number, depth_qual: string, organization: string}]
   selectedSiteIds,
   onSelectedSiteIdsChange,
 }: SearchBySitesProps) {
@@ -29,7 +29,7 @@ export function SearchBySites({
         label: `${site.name}`,
         value: String(site.station_id),
       })),
-    [sites]
+    [sites],
   );
 
   return (

@@ -4,10 +4,11 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 import sys
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import pandas as pd
 
 # Allow importing sibling package `modules/` from the repo root.
@@ -17,6 +18,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from modules.csv_to_parquet_s3 import make_s3_client  # noqa: E402
 from database.database_accessor_sqlalchemy import dbqISWS  # noqa: E402
+from interpolation import ordinary_kriging_grid  # noqa: E402
 
 import os
 
@@ -131,3 +133,65 @@ def test_parquet():
         "columns": df.columns.tolist(),
         "preview": df.head(5).to_dict(orient="records"),
     }
+
+
+class KrigingPoint(BaseModel):
+    lng: float
+    lat: float
+    value: float
+
+
+class KrigingGridRequest(BaseModel):
+    points: list[KrigingPoint] = Field(min_length=3)
+    lng_min: float
+    lng_max: float
+    lat_min: float
+    lat_max: float
+    nx: int = Field(default=80, ge=2, le=400)
+    ny: int = Field(default=80, ge=2, le=400)
+    variogram_model: Literal[
+        "linear", "power", "gaussian", "spherical", "exponential"
+    ] = "spherical"
+
+
+class KrigingGridResponse(BaseModel):
+    nx: int
+    ny: int
+    # Row-major, row j = lat_min + j * dlat, column i = lng_min + i * dlng.
+    grid: list[float]
+    variogram_model: str
+    variogram_parameters: list[float]
+
+
+@app.post("/api/interpolate/kriging", response_model=KrigingGridResponse)
+def interpolate_kriging(body: KrigingGridRequest):
+    if body.lng_max <= body.lng_min or body.lat_max <= body.lat_min:
+        raise HTTPException(status_code=422, detail="Grid bounds are empty.")
+
+    try:
+        grid, variogram_parameters = ordinary_kriging_grid(
+            lngs=[p.lng for p in body.points],
+            lats=[p.lat for p in body.points],
+            values=[p.value for p in body.points],
+            lng_min=body.lng_min,
+            lng_max=body.lng_max,
+            lat_min=body.lat_min,
+            lat_max=body.lat_max,
+            nx=body.nx,
+            ny=body.ny,
+            variogram_model=body.variogram_model,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Kriging failed: {e}"
+        ) from e
+
+    return KrigingGridResponse(
+        nx=body.nx,
+        ny=body.ny,
+        grid=grid.ravel().tolist(),
+        variogram_model=body.variogram_model,
+        variogram_parameters=variogram_parameters,
+    )

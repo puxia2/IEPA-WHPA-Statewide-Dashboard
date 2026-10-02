@@ -23,6 +23,7 @@ dependencies:
   - pyodbc
   - greenlet
   - numpy
+  - scipy
   - pip
   - pip:
       - fastapi>=0.115.0
@@ -31,3 +32,4 @@ dependencies:
       - boto3
       - pyarrow
       - python-dotenv
+      - pykrige>=1.7

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   GeoJSON,
   LayersControl,
@@ -44,6 +44,29 @@ interface DataRow {
 // The yearly-average dataset is narrow and the contours use nearly all of it,
 // so this reads every column rather than naming them.
 const DATASET = "EStL_AllDataJoin_year";
+
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+const GRID_SIZE = 80;
+
+type GridRequest = {
+  /** Station values in transformed (log/linear) space, clamped to the robust range. */
+  points: { lng: number; lat: number; value: number }[];
+  lngMin: number;
+  lngMax: number;
+  latMin: number;
+  latMax: number;
+  valueMin: number;
+  valueMax: number;
+  nx: number;
+  ny: number;
+};
+
+type KrigingGridResponse = {
+  nx: number;
+  ny: number;
+  grid: number[];
+};
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -200,8 +223,8 @@ export default function ContourMap({ defaultAlpha = 0.42 }: ContourMapProps) {
     return [p05, p95];
   }, [transformedPoints]);
 
-  const contourFeatures = useMemo(() => {
-    if (transformedPoints.length < 4) return [] as Feature<MultiPolygon>[];
+  const gridRequest = useMemo<GridRequest | null>(() => {
+    if (transformedPoints.length < 4) return null;
 
     const lats = transformedPoints.map((p) => p.lat);
     const lngs = transformedPoints.map((p) => p.lng);
@@ -220,60 +243,102 @@ export default function ContourMap({ defaultAlpha = 0.42 }: ContourMapProps) {
       !Number.isFinite(rawMax) ||
       rawMax <= rawMin ||
       !Number.isFinite(valueMin) ||
-      !Number.isFinite(valueMax)
+      !Number.isFinite(valueMax) ||
+      lngMax <= lngMin ||
+      latMax <= latMin
     ) {
+      return null;
+    }
+
+    return {
+      points: transformedPoints.map((p) => ({
+        lng: p.lng,
+        lat: p.lat,
+        value: clamp(p.tValue, valueMin, valueMax),
+      })),
+      lngMin,
+      lngMax,
+      latMin,
+      latMax,
+      valueMin,
+      valueMax,
+      nx: GRID_SIZE,
+      ny: GRID_SIZE,
+    };
+  }, [transformedPoints, robustRange]);
+
+  // The grid is tagged with the request it answers, so a slow response for an
+  // earlier year/parameter is never drawn against the current selection.
+  const [krigingResult, setKrigingResult] = useState<{
+    request: GridRequest;
+    grid: number[];
+  } | null>(null);
+  const [krigingError, setKrigingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!gridRequest) return;
+
+    const controller = new AbortController();
+    setKrigingError(null);
+
+    fetch(`${BACKEND_URL}/api/interpolate/kriging`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        points: gridRequest.points,
+        lng_min: gridRequest.lngMin,
+        lng_max: gridRequest.lngMax,
+        lat_min: gridRequest.latMin,
+        lat_max: gridRequest.latMax,
+        nx: gridRequest.nx,
+        ny: gridRequest.ny,
+      }),
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(
+            typeof body?.detail === "string"
+              ? body.detail
+              : `Interpolation request failed (${res.status})`,
+          );
+        }
+        return (await res.json()) as KrigingGridResponse;
+      })
+      .then((data) => {
+        if (data.grid.length !== gridRequest.nx * gridRequest.ny) {
+          throw new Error("Interpolation grid has an unexpected size.");
+        }
+        setKrigingResult({ request: gridRequest, grid: data.grid });
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setKrigingError(err instanceof Error ? err.message : String(err));
+      });
+
+    return () => controller.abort();
+  }, [gridRequest]);
+
+  const interpolating =
+    gridRequest !== null &&
+    krigingResult?.request !== gridRequest &&
+    krigingError === null;
+
+  const contourFeatures = useMemo(() => {
+    if (!gridRequest || krigingResult?.request !== gridRequest) {
       return [] as Feature<MultiPolygon>[];
     }
 
-    const nx = 80;
-    const ny = 80;
+    const { nx, ny, lngMin, lngMax, latMin, latMax, valueMin, valueMax } =
+      gridRequest;
     const dx = (lngMax - lngMin) / (nx - 1 || 1);
     const dy = (latMax - latMin) / (ny - 1 || 1);
 
-    const grid: number[] = [];
-    const kNearest = 8;
-    for (let j = 0; j < ny; j++) {
-      const lat = latMin + j * dy;
-      for (let i = 0; i < nx; i++) {
-        const lng = lngMin + i * dx;
-
-        // Local IDW interpolation on a regular grid (k nearest points only).
-        const distances: Array<{ distSq: number; value: number }> = [];
-        for (const p of transformedPoints) {
-          const dLat = lat - p.lat;
-          const dLng = lng - p.lng;
-          const distSq = dLat * dLat + dLng * dLng;
-          distances.push({
-            distSq,
-            value: clamp(p.tValue, valueMin, valueMax),
-          });
-        }
-
-        distances.sort((a, b) => a.distSq - b.distSq);
-        const nearest = distances.slice(
-          0,
-          Math.min(kNearest, distances.length),
-        );
-
-        let weighted = 0;
-        let weights = 0;
-        for (const n of nearest) {
-          if (n.distSq < 1e-12) {
-            weighted = n.value;
-            weights = 1;
-            break;
-          }
-          // distSq^1 == d^2, equivalent to classic IDW p=2
-          const w = 1 / Math.pow(n.distSq, 1);
-          weighted += n.value * w;
-          weights += w;
-        }
-        grid.push(weights > 0 ? weighted / weights : valueMin);
-      }
-    }
+    const grid = krigingResult.grid.slice();
 
     // Preserve station values by snapping each station to its nearest grid cell.
-    for (const p of transformedPoints) {
+    for (const p of gridRequest.points) {
       const i = Math.max(
         0,
         Math.min(nx - 1, Math.round((p.lng - lngMin) / (dx || 1))),
@@ -282,7 +347,7 @@ export default function ContourMap({ defaultAlpha = 0.42 }: ContourMapProps) {
         0,
         Math.min(ny - 1, Math.round((p.lat - latMin) / (dy || 1))),
       );
-      grid[j * nx + i] = clamp(p.tValue, valueMin, valueMax);
+      grid[j * nx + i] = p.value;
     }
 
     const levelCount = 12;
@@ -314,7 +379,7 @@ export default function ContourMap({ defaultAlpha = 0.42 }: ContourMapProps) {
           },
         };
       });
-  }, [transformedPoints, robustRange]);
+  }, [gridRequest, krigingResult]);
 
   const contourBounds = useMemo<
     [[number, number], [number, number]] | null
@@ -548,6 +613,16 @@ export default function ContourMap({ defaultAlpha = 0.42 }: ContourMapProps) {
           {error && (
             <div className="text-xs mt-2 text-red-600">Error: {error}</div>
           )}
+          {interpolating && (
+            <div className="text-xs mt-2">
+              Interpolating (Ordinary Kriging)...
+            </div>
+          )}
+          {krigingError && (
+            <div className="text-xs mt-2 text-red-600">
+              Interpolation error: {krigingError}
+            </div>
+          )}
 
           <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 leading-relaxed">
             <p>
@@ -566,10 +641,10 @@ export default function ContourMap({ defaultAlpha = 0.42 }: ContourMapProps) {
             </p>
             <p className="mt-2">
               The contour data presented in the associated map was interpolated
-              using the Inverse Distance Weighting method. This method is
-              described{" "}
+              using Ordinary Kriging with an automatically fitted spherical
+              variogram. This method is described{" "}
               <a
-                href="https://en.wikipedia.org/wiki/Inverse_distance_weighting"
+                href="https://en.wikipedia.org/wiki/Kriging"
                 target="_blank"
                 rel="noreferrer"
                 className="underline text-amber-900 hover:text-amber-700"
