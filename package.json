@@ -7,7 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "backend:dev": "cd backend && python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000"
+    "backend:dev": "cd backend && python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1103.0",
