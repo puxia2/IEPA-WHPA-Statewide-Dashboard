@@ -1,0 +1,15 @@
+name: wq-database-python
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pyyaml
+  - rioxarray
+  - geopandas
+  - openpyxl
+  - sqlalchemy
+  - cartopy
+  - pip
+  - pip:
+    - pyodbc
+    - gis-utils

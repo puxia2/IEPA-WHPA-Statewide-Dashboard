@@ -1,0 +1,55 @@
+select q.Station_ID, q.Name,q.Lat, q.Long, q.Parameter_Code, q.ParamName2,
+year(q.start_date) yr,
+--q.bi_yr,
+--q.qtr,
+avg(q.result_value_ugL) avg_result_value_ugL, count (q.result_value_ugL) cnt
+
+from
+ (select o.Organization_Name, pp.Project_Report_Purpose, l.Station_ID, l.Name,l.Lat, l.Long,
+ s.Sample_ID, s.Start_Date, s.Missing_Time, m.Medium_Description, st.Sample_Type_Description, s.Filtered, s.Comments, s.Depth_ft, s.Depth_Qual,
+ pr.Parameter_Code, pr.Description as ParamName,
+ case
+  when pr.Measurement is NULL THEN pr.Desc_NoUnit
+  when pr.Measurement is Not NULL THEN Desc_NoUnit + ' (' + Measurement + ')'
+  ELSE 'shit'
+ END as ParamName2,
+
+ pr.Parameter_Unit,r.Operator, r.Result_Value,
+ case
+  when pr.Parameter_Unit = 'mg/L' THEN r.Result_Value * 1000
+  when pr.Parameter_Unit = 'ug/L' THEN r.Result_Value
+  ELSE NULL
+ END as Result_Value_ugL,
+
+ case
+  when month(s.start_date) IN(1,2,3) THEN 1
+  when month(s.start_date) IN(4,5,6) THEN 2
+  when month(s.start_date) IN(7,8,9) THEN 3
+  when month(s.start_date) IN(10,11,12) THEN 4
+  else 'shiiiiiiyet'
+ end as qtr,
+
+  case
+  when month(s.start_date) IN(1,2,3,4,5,6) THEN 1
+  when month(s.start_date) IN(7,8,9,10,11,12) THEN 2
+  else 'shiiiiiiyet'
+ end as bi_yr,
+
+ rr.Remark_Description, r.Comment
+ from TBL_Results r
+ left join TBL_Parameter pr on pr.Parameter_Code=r.Parameter_Code
+ left join TBL_Result_Remarks rr on r.Remark_Code=rr.Remark_Code
+ left join TBL_Sample s on r.Sample_ID=s.Sample_ID
+ left join TBL_Location l on l.Station_ID=s.Station_ID
+ left join TBL_Project pp on s.Proj_ID=pp.Proj_ID
+ left join TBL_Organization o on o.Org_ID=pp.Org_ID
+ left join TBL_Medium m on s.Medium=m.Medium
+ left join TBL_Sample_Type st on s.Sample_Type=st.Sample_Type
+ ) as q
+where q.Medium_Description = 'Groundwater' and q.Lat is not NULL --and q.Parameter_Code = 843
+
+group by q.Station_ID, q.Name,q.Lat, q.Long, q.Parameter_Code, q.ParamName2,
+year(q.start_date)
+--q.qtr
+--q.bi_yr
+order by Station_ID,ParamName2, yr;
