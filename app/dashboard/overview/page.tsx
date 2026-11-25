@@ -39,7 +39,7 @@ export default function Map() {
         )}
       </div>
       <div style={{ height: "600px", width: "100%" }}>
-        <Map position={[38.61741, -90.1646]} zoom={13} />
+        <Map position={[40.110558, -88.228333]} zoom={9} />
       </div>
     </div>
   );

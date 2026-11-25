@@ -4,30 +4,12 @@
 import React, { useEffect, useMemo, useRef } from "react";
 import * as d3 from "d3";
 import { BoxPlotSingleSiteProps } from "@/types/chart";
-import { useParquetData } from "@/components/parquet-reader";
-
-interface DataRow {
-  ParamName2?: string;
-  ParamName?: string;
-  Name: string;
-  Result_Value_ugL?: number | string;
-  Result_Value?: number | string;
-  [k: string]: unknown;
-}
-
-// Only the columns the box stats need; see the note in time-series-plot.tsx.
-const COLUMNS = [
-  "ParamName2",
-  "ParamName",
-  "Name",
-  "Result_Value_ugL",
-  "Result_Value",
-];
+import { parameterKey } from "@/lib/usgs-dv";
+import { useUsgsSeries } from "@/hooks/use-usgs-dv";
 
 export default function BoxPlotSingleSite({
   siteName,
   targetParam,
-  dataset = "EStL_AllDataJoin2",
   height = 460,
   margin = { top: 24, right: 20, bottom: 64, left: 64 },
   tickRotate = -30,
@@ -38,16 +20,10 @@ export default function BoxPlotSingleSite({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
 
-  // read the published Parquet dataset through the /api/data proxy
-  const { rows, loading, error } = useParquetData<DataRow>(dataset, {
-    columns: COLUMNS,
-  });
-
-  function coerceNumber(x: unknown): number | null {
-    if (x === null || x === undefined || x === "") return null;
-    const n = typeof x === "number" ? x : Number(String(x).replace(/,/g, ""));
-    return Number.isFinite(n) ? n : null;
-  }
+  const { series, loading, error } = useUsgsSeries(
+    siteName ? [siteName] : [],
+    targetParam,
+  );
 
   type BoxStats = {
     param: string;
@@ -61,60 +37,34 @@ export default function BoxPlotSingleSite({
   };
 
   const stats: BoxStats[] = useMemo(() => {
-    if (!rows.length || !siteName || !targetParam?.length) return [];
+    if (!series.length || !targetParam?.length) return [];
 
-    const normalize = (s: string) => s.trim().replace(/\s+/g, " ");
-
-    const siteNorm = normalize(siteName);
-    const paramSet = new Set(
-      targetParam.map((p) => normalize(String(p || ""))).filter(Boolean)
-    );
-
-    if (!paramSet.size) return [];
-
-    // group by param -> values[]
-    const groups = new Map<string, number[]>();
-
-    for (const r of rows) {
-      const rowSite = normalize(String(r.Name ?? ""));
-      if (!rowSite || rowSite !== siteNorm) continue;
-
-      const paramNormalized = normalize(String(r.ParamName2 ?? r.ParamName ?? ""));
-      if (!paramNormalized || !paramSet.has(paramNormalized)) continue;
-
-      const v = coerceNumber((r.Result_Value_ugL ?? r.Result_Value) ?? null);
-      if (v === null) continue;
-
-      const arr = groups.get(paramNormalized) ?? [];
-      arr.push(v);
-      groups.set(paramNormalized, arr);
-    }
-
+    const selected = new Set(targetParam);
     const out: BoxStats[] = [];
-    groups.forEach((arr, param) => {
-      if (!arr.length) return;
-      const sorted = arr.slice().sort((a, b) => a - b);
-      const min = sorted[0];
-      const max = sorted[sorted.length - 1];
-      const q1 = d3.quantileSorted(sorted, 0.25)!;
-      const median = d3.quantileSorted(sorted, 0.5)!;
-      const average = sorted.reduce((a, b) => a + b, 0) / sorted.length;
-      const q3 = d3.quantileSorted(sorted, 0.75)!;
+
+    for (const item of series) {
+      const key = parameterKey(item.parameter_code, item.statistic_id);
+      if (!selected.has(key)) continue;
+      const sorted = item.points
+        .map((point) => point.value)
+        .filter((value) => Number.isFinite(value))
+        .sort((a, b) => a - b);
+      if (!sorted.length) continue;
       out.push({
-        param,
+        param: item.label,
         count: sorted.length,
-        min,
-        q1,
-        median,
-        average,
-        q3,
-        max,
+        min: sorted[0],
+        q1: d3.quantileSorted(sorted, 0.25)!,
+        median: d3.quantileSorted(sorted, 0.5)!,
+        average: sorted.reduce((a, b) => a + b, 0) / sorted.length,
+        q3: d3.quantileSorted(sorted, 0.75)!,
+        max: sorted[sorted.length - 1],
       });
-    });
+    }
 
     out.sort((a, b) => a.param.localeCompare(b.param));
     return out;
-  }, [rows, siteName, targetParam]);
+  }, [series, targetParam]);
 
   // —— draw the plot —— //
   useEffect(() => {

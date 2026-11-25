@@ -36,7 +36,7 @@ S3_SECRET_KEY=...
 ### The proxy route
 
 `GET /api/data/<name>.parquet` signs a request to the bucket server-side and
-streams the object back. Requests are resolved beneath `S3_PREFIX` (`isws/wq`)
+streams the object back. Requests are resolved beneath `S3_PREFIX` (`tlpa/wq`)
 and must end in `.parquet`, so the route cannot be used to read anything else in
 the bucket. Credentials are never sent to the browser, and no presigned URL is
 handed out either — the bytes travel through node.

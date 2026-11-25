@@ -12,10 +12,8 @@ import {
   Legend,
   type LegendPayload,
 } from "recharts";
-import dayjs from "dayjs";
-import { useParquetData } from "@/components/parquet-reader";
 import { TimeSeriesPlotProps } from "@/types/chart";
-import { coerceNumber, mdySortKey, toMDY } from "@/lib/date";
+import { useUsgsSeries } from "@/hooks/use-usgs-dv";
 
 type WidePoint = {
   dateLabel: string; // "MM/DD/YYYY"
@@ -23,6 +21,15 @@ type WidePoint = {
   sort: number; // yyyymmdd, for sorting
   [site: string]: string | number | undefined;
 };
+
+function formatUtc(ms: number, withDay: boolean) {
+  const date = new Date(ms);
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  if (!withDay) return `${month}/${year}`;
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 const DEFAULT_COLORS = [
   "#b45309", // amber-700
@@ -33,84 +40,48 @@ const DEFAULT_COLORS = [
   "#16a34a", // green-600
 ];
 
-// Only the columns this plot reads; see the note in time-series-plot.tsx.
-const COLUMNS = [
-  "ParamName2",
-  "ParamName",
-  "Name",
-  "Start_Date",
-  "Result_Value_ugL",
-  "Result_Value",
-];
+// Daily values are dense. Keep the line readable without drawing a dot per day.
+const MAX_POINTS = 4000;
 
 export function TimeSeriesPlotDatestamp({
   targetParam,
   sites,
-  dataset = "EStL_AllDataJoin2",
   colors = {},
   height = 440,
   compact = false,
   xDomain,
   onInitialDomain,
 }: TimeSeriesPlotProps) {
-  const { rows } = useParquetData<Record<string, unknown>>(dataset, {
-    columns: COLUMNS,
-  });
+  const parameterKeys = targetParam ? [targetParam] : [];
+  const { series, loading, error } = useUsgsSeries(
+    sites,
+    parameterKeys,
+    MAX_POINTS,
+  );
 
   const data: WidePoint[] = useMemo(() => {
-    const bucket = new Map<string, Map<string, number[]>>();
-    const normalize = (s: unknown) =>
-      String(s ?? "")
-        .trim()
-        .replace(/\s+/g, " ");
-    const selectedSiteSet = new Set(sites.map((s) => normalize(s)));
-    const selectedParam = normalize(targetParam);
+    const bucket = new Map<number, WidePoint>();
 
-    for (const r of rows) {
-      // Filter by targetParam first (like time-series-plot.tsx does)
-      const paramName = normalize(r.ParamName2 ?? r.ParamName);
-      if (!selectedParam || paramName !== selectedParam) continue;
-
-      const mdy = toMDY(r.Start_Date);
-      if (!mdy) continue;
-
-      const v = coerceNumber((r.Result_Value_ugL ?? r.Result_Value) as unknown);
-      if (v === null) continue;
-
-      const site = normalize(r.Name);
-      if (!selectedSiteSet.has(site)) continue;
-
-      let inner = bucket.get(mdy);
-      if (!inner) {
-        inner = new Map();
-        bucket.set(mdy, inner);
-      }
-      const arr = inner.get(site) ?? [];
-      arr.push(v);
-      inner.set(site, arr);
-    }
-
-    const out: WidePoint[] = [];
-    for (const [mdy, inner] of bucket) {
-      const sort = mdySortKey(mdy);
-      if (sort === null) continue;
-
-      const ms = new Date(mdy).getTime();
-      if (!Number.isFinite(ms)) continue;
-
-      const row: WidePoint = { dateLabel: mdy, dateMs: ms, sort };
-      for (const s of sites) {
-        const arr = inner.get(s);
-        if (arr && arr.length) {
-          row[s] = arr.reduce((a, b) => a + b, 0) / arr.length;
+    for (const item of series) {
+      const site = item.monitoring_location_id;
+      for (const point of item.points) {
+        let row = bucket.get(point.time);
+        if (!row) {
+          row = {
+            dateLabel: formatUtc(point.time, true),
+            dateMs: point.time,
+            sort: point.time,
+          };
+          bucket.set(point.time, row);
         }
+        row[site] = point.value;
       }
-      out.push(row);
     }
 
-    out.sort((a, b) => a.sort - b.sort);
-    return out;
-  }, [rows, sites, targetParam]);
+    return Array.from(bucket.values()).sort((a, b) => a.sort - b.sort);
+  }, [series]);
+
+  const yLabel = series[0]?.label || "Value";
 
   useEffect(() => {
     if (!onInitialDomain) return;
@@ -158,7 +129,15 @@ export function TimeSeriesPlotDatestamp({
         )}
       </div>
       <div className="flex-1 min-h-0">
-        {data.length ? (
+        {loading ? (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Loading daily values…
+          </div>
+        ) : error ? (
+          <div className="flex h-full items-center justify-center text-sm text-red-600">
+            {error}
+          </div>
+        ) : data.length ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={data}
@@ -171,9 +150,7 @@ export function TimeSeriesPlotDatestamp({
                 scale="time"
                 domain={xDomain ?? ["auto", "auto"]}
                 minTickGap={28}
-                tickFormatter={(value: number) =>
-                  dayjs(value).format("MM/YYYY")
-                }
+                tickFormatter={(value: number) => formatUtc(value, false)}
                 label={{
                   value: "Date",
                   position: "insideBottomRight",
@@ -184,7 +161,7 @@ export function TimeSeriesPlotDatestamp({
               />
               <YAxis
                 label={{
-                  value: targetParam + "  (ppb)",
+                  value: yLabel,
                   position: "insideMiddle",
                   angle: -90,
                   offset: 0,
@@ -193,9 +170,7 @@ export function TimeSeriesPlotDatestamp({
                 }}
               />
               <Tooltip
-                labelFormatter={(value) =>
-                  dayjs(value as number).format("YYYY-MM-DD")
-                }
+                labelFormatter={(value) => formatUtc(value as number, true)}
               />
               <Legend
                 onClick={(o) => {
@@ -215,7 +190,7 @@ export function TimeSeriesPlotDatestamp({
                   dataKey={s}
                   name={s}
                   stroke={siteColor[s]}
-                  dot={!compact}
+                  dot={false}
                   strokeWidth={2}
                   connectNulls
                   hide={hidden[s]}

@@ -17,7 +17,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import "leaflet-defaulticon-compatibility";
 import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
-import { useParquetData } from "@/components/parquet-reader";
+import { useUsgsSites } from "@/hooks/use-usgs-dv";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import MarkerClusterGroup from "react-leaflet-markercluster";
@@ -76,33 +76,11 @@ interface MyMapProps {
   zoom: number;
 }
 
-interface mapRow {
-  Lat: number;
-  Long: number;
-  Station_ID: number;
-  Depth_Qual: string;
-  Parameter_Code: number;
-  ParamName2?: string;
-  ParamName?: string;
-  Name: string;
-  Organization_Name: string;
-  [k: string]: unknown;
+interface SiteParameter {
+  key: string;
+  label: string;
+  count: number;
 }
-
-// The map only needs site identity and the parameter names, not the 24 columns
-// of the full dataset. Parquet is columnar, so naming them keeps the transfer
-// small; columns absent from a dataset are ignored, which is what makes the
-// ParamName2/ParamName fallback below work.
-const COLUMNS = [
-  "Lat",
-  "Long",
-  "Station_ID",
-  "Depth_Qual",
-  "Name",
-  "Organization_Name",
-  "ParamName2",
-  "ParamName",
-];
 
 interface Site {
   name: string;
@@ -111,12 +89,11 @@ interface Site {
   lng: number;
   depth_qual: string;
   organization: string;
+  parameters: SiteParameter[];
 }
 
 export default function MyMap({ position, zoom }: MyMapProps) {
-  const { rows, loading, error } = useParquetData<mapRow>("EStL_AllDataJoin2", {
-    columns: COLUMNS,
-  });
+  const { sites: usgsSites, loading, error } = useUsgsSites();
   const [runTour, setRunTour] = useState(false);
   const [tourStepIndex, setTourStepIndex] = useState(0);
   // multiple sites can be selected at once, array of station_id
@@ -134,65 +111,49 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     });
   }, []);
 
-  // Extract unique sites from CSV data
-  const sites = useMemo(() => {
-    const siteMap = new Map<number, Site>();
+  // One marker per monitoring location in usgs_DV_results.parquet.
+  const sites = useMemo<Site[]>(() => {
+    return usgsSites
+      .filter(
+        (site) =>
+          Number.isFinite(site.latitude) &&
+          Number.isFinite(site.longitude) &&
+          Number.isFinite(site.station_id),
+      )
+      .map((site) => ({
+        name: site.monitoring_location_id,
+        station_id: site.station_id,
+        lat: site.latitude,
+        lng: site.longitude,
+        organization: "USGS",
+        depth_qual: site.parameters.map((param) => param.label).join(", "),
+        parameters: site.parameters.map((param) => ({
+          key: param.key,
+          label: param.label,
+          count: param.count,
+        })),
+      }));
+  }, [usgsSites]);
 
-    for (const row of rows) {
-      const lat = typeof row.Lat === "number" ? row.Lat : Number(row.Lat);
-      const lng = typeof row.Long === "number" ? row.Long : Number(row.Long);
-      const name = String(row.Name || "").trim();
-      const station_id = Number(row.Station_ID || "");
-      const organization = String(row.Organization_Name || "").trim();
-      const depth_qual =
-        String(row.Depth_Qual || "").trim() === "NULL"
-          ? "Unknown"
-          : String(row.Depth_Qual || "").trim();
-
-      // Skip invalid data
-      if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-        continue;
-      }
-
-      // Use station_id as key to ensure uniqueness
-      // If same name appears with different coordinates, keep the first one
-      if (!siteMap.has(station_id)) {
-        siteMap.set(station_id, {
-          name,
-          station_id,
-          lat,
-          lng,
-          depth_qual,
-          organization,
-        });
-      }
+  const parameterLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const site of sites) {
+      for (const param of site.parameters) labels.set(param.key, param.label);
     }
+    return labels;
+  }, [sites]);
 
-    return Array.from(siteMap.values());
-  }, [rows]);
-
-  // extract unique parameter name for each site from CSV data
+  // parameter keys available at each site
   const parameterNames = useMemo(() => {
-    const parameterNameMap = new Map<number, Set<string>>(); // station_id -> Set<parameterName>
-    for (const row of rows) {
-      const station_id = Number(row.Station_ID || "");
-      const parameterName = String(
-        row.ParamName2 || row.ParamName || "",
-      ).trim();
-      if (!parameterName || !Number.isFinite(station_id)) continue;
-
-      if (!parameterNameMap.has(station_id)) {
-        parameterNameMap.set(station_id, new Set());
-      }
-      parameterNameMap.get(station_id)?.add(parameterName);
-    }
-    // Convert Set to Array for easier use
     const result = new Map<number, string[]>();
-    parameterNameMap.forEach((paramSet, station_id) => {
-      result.set(station_id, Array.from(paramSet));
-    });
+    for (const site of sites) {
+      result.set(
+        site.station_id,
+        site.parameters.map((param) => param.key),
+      );
+    }
     return result;
-  }, [rows]);
+  }, [sites]);
 
   // array of sites that are selected, each site is an object with name, station_id, lat, lng
   const selectedSites = useMemo(
@@ -330,40 +291,16 @@ export default function MyMap({ position, zoom }: MyMapProps) {
   const tourSteps: Step[] = useMemo(
     () => [
       {
-        target: ".quick-select-panel",
-        content: (
-          <div>
-            <p>
-              This panel allows you to filter sites based on shared attributes.
-              Click on a button to quickly select and view sites&apos; data.
-              When selected, the time series chart will populate and the map
-              will be updated based on your selection.
-            </p>
-            <p>
-              For this tour, we&apos;ll automatically select all deep IDOT wells
-              — <strong>Select all IDOT Sites (D)</strong> — and chlorobenzene
-              as the parameter.
-            </p>
-          </div>
-        ),
-        placement: "bottom",
-      },
-      {
         target: ".multi-selection-panel",
         content: (
           <div>
             <p>
-              If you want to select sites that are not grouped in the quick
-              selections above, use this dropdown to choose one or more sites
-              when you do not know their precise location on the map.
+              Use this dropdown to choose one or more sites when you do not
+              know their precise location on the map.
             </p>
             <p>
               Once a site (or sites) is selected, the time series chart will
               populate and the map will update based on your selection.
-            </p>
-            <p>
-              For this tour, we have selected:{" "}
-              <strong>PM1D, PM2D, PM3D, PM4D, PM5D, and PM6D</strong> (IDNR-16).
             </p>
           </div>
         ),
@@ -414,13 +351,13 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         content: (
           <div>
             <p>
-              This time series graph shows how water quality concentrations
-              change over time for the site(s) selected on the map.
+              This time series graph shows USGS daily values for the site(s)
+              selected on the map.
             </p>
             <p>
-              Choose a constituent/parameter from the dropdown in the upper
-              right corner of the panel. Unless otherwise noted, concentrations
-              are shown in <strong>parts per billion (ppb)</strong>.
+              Choose a parameter from the dropdown in the upper right corner of
+              the panel. Discharge is in cubic feet per second, and gage height
+              and depth to water are in feet.
             </p>
           </div>
         ),
@@ -444,9 +381,8 @@ export default function MyMap({ position, zoom }: MyMapProps) {
         content: (
           <div>
             <p>
-              This panel shows Mississippi River gage height (ft) from the{" "}
-              <strong>USGS-07010000</strong> gaging station (Mississippi River
-              at St. Louis, MO).
+              This panel shows Boneyard Creek gage height (ft) from{" "}
+              <strong>USGS-03337000</strong> at Urbana, IL.
             </p>
             <p>
               The time series shifts to match the date range available for the
@@ -464,42 +400,20 @@ export default function MyMap({ position, zoom }: MyMapProps) {
     [],
   );
 
-  const selectAllIDOTSitesD = useCallback(() => {
-    setSelectedSiteIds([56, 58, 60, 96, 556, 559]);
-    setSelectedParameterName("Chlorobenzene");
-  }, [setSelectedSiteIds, setSelectedParameterName]);
+  const handleJoyrideEvent = useCallback((data: EventData) => {
+    const { action, index, status, type } = data;
 
-  const selectAllIDOTSitesM = useCallback(() => {
-    setSelectedSiteIds([57, 59, 61, 97, 557, 560]);
-    setSelectedParameterName("Chlorobenzene");
-  }, [setSelectedSiteIds, setSelectedParameterName]);
+    if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+      setRunTour(false);
+      setTourStepIndex(0);
+      return;
+    }
 
-  const selectAllIDOTSitesS = useCallback(() => {
-    setSelectedSiteIds([558, 561]);
-    setSelectedParameterName("Chlorobenzene");
-  }, [setSelectedSiteIds, setSelectedParameterName]);
-
-  const handleJoyrideEvent = useCallback(
-    (data: EventData) => {
-      const { action, index, status, type } = data;
-
-      if (type === EVENTS.STEP_BEFORE && index === 0) {
-        selectAllIDOTSitesD();
-      }
-
-      if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
-        setRunTour(false);
-        setTourStepIndex(0);
-        return;
-      }
-
-      if (type === EVENTS.STEP_AFTER) {
-        const nextIndex = index + (action === ACTIONS.PREV ? -1 : 1);
-        setTourStepIndex(nextIndex);
-      }
-    },
-    [selectAllIDOTSitesD],
-  );
+    if (type === EVENTS.STEP_AFTER) {
+      const nextIndex = index + (action === ACTIONS.PREV ? -1 : 1);
+      setTourStepIndex(nextIndex);
+    }
+  }, []);
 
   return (
     <div className="w-full min-h-screen p-1">
@@ -567,71 +481,6 @@ export default function MyMap({ position, zoom }: MyMapProps) {
             key="selection"
             className="panel mb-4 bg-white rounded-lg shadow-sm border overflow-hidden"
           >
-            {/* Quick select buttons */}
-            <div className="px-2 py-1 text-xs font-semibold border-b flex justify-center gap-4 quick-select-panel">
-              <Button
-                variant="outline"
-                className="tour-select-idot-btn"
-                onClick={() => {
-                  selectAllIDOTSitesD();
-                }}
-              >
-                Select all IDOT Sites (D)
-              </Button>
-
-              <Button
-                variant="outline"
-                className="tour-select-idot-btn"
-                onClick={() => {
-                  selectAllIDOTSitesM();
-                }}
-              >
-                Select all IDOT Sites (M)
-              </Button>
-
-              <Button
-                variant="outline"
-                className="tour-select-idot-btn"
-                onClick={() => {
-                  selectAllIDOTSitesS();
-                }}
-              >
-                Select all IDOT Sites (S)
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedSiteIds([85, 86, 87, 93, 94, 95]);
-                  setSelectedParameterName("Chlorobenzene");
-                }}
-              >
-                Select all GWE Sites
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedSiteIds([82, 83, 84, 549, 550, 551, 552]);
-                  setSelectedParameterName("Chlorobenzene");
-                }}
-              >
-                Select all ESL Sites
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedSiteIds([
-                    68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 261,
-                  ]);
-                  setSelectedParameterName("Chlorobenzene");
-                }}
-              >
-                Select all BWMW Sites
-              </Button>
-            </div>
-
             {/* Search by sites */}
             <div className="p-2 panel-no-drag multi-selection-panel">
               <SearchBySites
@@ -682,7 +531,8 @@ export default function MyMap({ position, zoom }: MyMapProps) {
 
                 {loading && (
                   <div className="absolute top-4 left-4 z-[1000] bg-white p-2 rounded shadow">
-                    Loading sites...
+                    Loading USGS sites… the first read of usgs_DV_results can
+                    take a minute.
                   </div>
                 )}
                 {error && (
@@ -751,7 +601,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
                   setSelectedParameterName(value ?? null)
                 }
               >
-                <SelectTrigger className="w-[180px] tour-parameter-dropdown">
+                <SelectTrigger className="w-[280px] tour-parameter-dropdown">
                   <SelectValue placeholder="Select a parameter" />
                 </SelectTrigger>
                 <SelectContent>
@@ -759,7 +609,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
                     <SelectLabel>Parameters</SelectLabel>
                     {availableParameterNames?.map((param) => (
                       <SelectItem key={param} value={param}>
-                        {param}
+                        {parameterLabels.get(param) ?? param}
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -796,7 +646,7 @@ export default function MyMap({ position, zoom }: MyMapProps) {
               onTouchStart={(e) => e.stopPropagation()}
             >
               <RiverLevelPlotRealTime
-                site="07010000"
+                site="03337000"
                 startDT="2000-01-02"
                 parameterCd="00065"
                 xDomain={domain}

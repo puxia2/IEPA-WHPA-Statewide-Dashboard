@@ -8,5 +8,7 @@ export default function PageTitle() {
   const title = lastPart
     ? lastPart.charAt(0).toUpperCase() + lastPart.slice(1)
     : "Dashboard";
-  return <h1 className="text-2xl font-bold p-2">ISWS Water Quality {title}</h1>;
+  return (
+    <h1 className="text-2xl font-bold p-2">IEPA WHPA Statewide {title}</h1>
+  );
 }

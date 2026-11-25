@@ -3,7 +3,6 @@
 import { Popup, useMap } from "react-leaflet";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import TimestampSeriesPlot from "@/plots/time-series-plot";
 import { DialogCard } from "./dialog-card";
 import SampleCountsBarPlot from "@/plots/sample-counts-bar-plot";
 
@@ -14,6 +13,7 @@ interface Site {
   lat: number;
   lng: number;
   depth_qual: string;
+  parameters: { key: string; label: string; count: number }[];
 }
 
 export default function PopupCard({
@@ -48,18 +48,15 @@ export default function PopupCard({
               : "Not Selected (click to select)"}
           </div>
           <div>
-            Depth of the screened interval: <strong>{site.depth_qual}</strong>
+            Parameters: <strong>{site.depth_qual}</strong>
           </div>
 
           <div className="mt-2">
-            {/* <TimestampSeriesPlot
-              targetParam="Gage Height (ft)"
-              sites={[site.name]}
-              height={200}
-              compact={true}
-            /> */}
             <SampleCountsBarPlot
-              siteName={site.name}
+              counts={site.parameters.map((param) => ({
+                param: param.label,
+                count: param.count,
+              }))}
               topN={5}
               height={200}
             />

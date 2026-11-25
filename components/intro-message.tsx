@@ -26,36 +26,26 @@ export default function IntroMessage() {
               ISWS water quality database.{" "}
             </p>
             <p className="text-lg">
-              For the moment, this database focuses on water quality samples
-              that were collected in the East St. Louis, IL and Sauget, IL
-              areas.
+              The overview map plots USGS daily-value sites from{" "}
+              <strong>usgs_DV_results.parquet</strong>: discharge, gage height,
+              and depth to water level across Illinois.
             </p>
             <p className="text-lg">
-              On the left side of the page, there are multiple tabs for
-              different ways to view the data. For example, the “Overview” tab
-              displays a map of sampling locations paired with two time series
-              plots, one of the selected site and contaminant time-series and
-              the other of the nearby Mississippi River gage. Mississippi River
-              gage height (ft) comes from the{" "}
+              Select one or more sites to draw that record. Gage height in the
+              lower chart is the live USGS series for{" "}
               <a
-                href="https://waterdata.usgs.gov/monitoring-location/USGS-07010000/#dataTypeId=continuous-00065-0&period=P7D&showFieldMeasurements=true"
+                href="https://waterdata.usgs.gov/monitoring-location/USGS-03337000/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-500 hover:text-blue-700"
               >
-                USGS-0701000 gaging station (Mississippi River at St. Louis, MO)
+                USGS-03337000 (Boneyard Creek at Urbana, IL)
               </a>
-              . This view should promote analysis of contaminant trends through
-              time compared against the river’s physical dynamics.
+              .
             </p>
             <p className="text-lg">
-              The second tab labeled “Heat Map” calculates and maps
-              concentration contours for different contaminants over a given
-              period.
-            </p>
-            <p className="text-lg">
-              <strong>NOTE:</strong> Unless otherwise specified, all
-              concentration data is presented in parts per billion (ppb).{" "}
+              The “Heat Map” tab still maps East St. Louis concentration
+              contours. Those concentrations are in parts per billion (ppb).
             </p>
             {/* <p className="text-lg">…</p> */}
             {/* <p className="text-lg">

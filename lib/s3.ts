@@ -23,7 +23,7 @@ export const S3_BUCKET = process.env.S3_BUCKET ?? "ot-data-catalog";
  * this prefix, so a request can never address another part of the bucket.
  * Must match --prefix in modules/csv_to_parquet_s3.py.
  */
-export const S3_PREFIX = (process.env.S3_PREFIX ?? "isws/wq").replace(
+export const S3_PREFIX = (process.env.S3_PREFIX ?? "tlpa/wq").replace(
   /^\/+|\/+$/g,
   ""
 );
